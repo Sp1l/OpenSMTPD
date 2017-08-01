@@ -1115,6 +1115,34 @@ struct msg_walkinfo {
 	int		 done;
 };
 
+
+enum dispatcher_type {
+	DISPATCHER_MDA,
+	DISPATCHER_MTA,
+};
+
+struct dispatcher_mda {
+	char	*argv0;
+
+	char	*virtual;
+	char	*aliases;
+	char	*userbase;
+
+	char	*user;
+};
+
+struct dispatcher_mta {
+};
+
+struct dispatcher {
+	enum dispatcher_type		type;
+	union dispatcher_agent {
+		struct dispatcher_mda	mda;
+		struct dispatcher_mta	mta;
+	} agent;
+};
+
+
 /* aliases.c */
 int aliases_get(struct expand *, const char *);
 int aliases_virtual_get(struct expand *, const struct mailaddr *);

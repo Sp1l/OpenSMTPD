@@ -102,6 +102,9 @@ struct mta_limits	*limits;
 static struct pki	*pki;
 static struct ca	*sca;
 
+struct dispatcher	*dispatcher;
+
+
 enum listen_options {
 	LO_FAMILY	= 0x000001,
 	LO_PORT		= 0x000002,
@@ -175,6 +178,7 @@ typedef struct {
 %token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
 %token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARDONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
+%token	DISPATCHER USER
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.table>	table
@@ -189,6 +193,7 @@ grammar		: /* empty */
 		| grammar varset '\n'
 		| grammar main '\n'
 		| grammar table '\n'
+		| grammar dispatcher '\n'
 		| grammar rule '\n'
 		| grammar error '\n'		{ file->errors++; }
 		;
@@ -236,6 +241,124 @@ optnl		: '\n' optnl
 nl		: '\n' optnl
 		;
 
+
+dispatcher_mda_option:
+USER STRING {
+	if (strcmp(dispatcher->agent.mda.argv0, "mail.local") == 0) {
+		yyerror("user may not be specified for mbox");
+		YYERROR;
+	}
+
+	if (dispatcher->agent.mda.user) {
+		yyerror("user already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->agent.mda.user = $2;
+}
+| ALIAS tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mda.aliases) {
+		yyerror("aliases mapping already specified for this dispatcher");
+		YYERROR;
+	}
+
+	if (dispatcher->agent.mda.virtual) {
+		yyerror("virtual mapping already specified for this dispatcher");
+		YYERROR;
+	}
+	
+	if (!table_check_use(t, T_DYNAMIC|T_HASH, K_ALIAS)) {
+		yyerror("table \"%s\" may not be used for alias lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mda.aliases = t->t_name;
+}
+| VIRTUAL tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mda.virtual) {
+		yyerror("virtual mapping already specified for this dispatcher");
+		YYERROR;
+	}
+	
+	if (dispatcher->agent.mda.aliases) {
+		yyerror("aliases mapping already specified for this dispatcher");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_HASH, K_ALIAS)) {
+		yyerror("table \"%s\" may not be used for virtual lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mda.virtual = t->t_name;
+}
+| USERBASE tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mda.userbase) {
+		yyerror("userbase mapping already specified for this dispatcher");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_HASH, K_USERINFO)) {
+		yyerror("table \"%s\" may not be used for userbase lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mda.userbase = t->t_name;
+}
+;
+
+dispatcher_mda_options:
+dispatcher_mda_option dispatcher_mda_options
+| /* empty */
+;
+
+dispatcher_mda:
+MBOX {
+	dispatcher->agent.mda.argv0 = xstrdup("mail.local", "dispatcher_mda");
+	dispatcher->agent.mda.user = xstrdup("root", "dispatcher_mda");
+} dispatcher_mda_options
+| MAILDIR {
+	dispatcher->agent.mda.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
+} dispatcher_mda_options
+| MAILDIR STRING {
+	dispatcher->agent.mda.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
+} dispatcher_mda_options
+| MDA STRING {
+	dispatcher->agent.mda.argv0 = xstrdup("mail.mda", "dispatcher_mda");
+} dispatcher_mda_options
+;
+
+dispatcher_mta	: RELAY {
+}
+;
+
+dispatcher_kind:
+dispatcher_mda {
+	dispatcher->type = DISPATCHER_MDA;
+}
+| dispatcher_mta {
+	dispatcher->type = DISPATCHER_MTA;
+}
+;
+
+dispatcher:
+DISPATCHER STRING {
+	dispatcher = xcalloc(1, sizeof *dispatcher, "dispatcher");
+} dispatcher_kind {
+	dispatcher = NULL;
+}
+;
+
+/*---------*/
 size		: NUMBER		{
 			if ($1 < 0) {
 				yyerror("invalid size: %" PRId64, $1);
@@ -1468,6 +1591,7 @@ lookup(char *s)
 		{ "compression",	COMPRESSION },
 		{ "deliver",		DELIVER },
 		{ "dhe",		DHE },
+		{ "dispatcher",		DISPATCHER },
 		{ "domain",		DOMAIN },
 		{ "encryption",		ENCRYPTION },
 		{ "expire",		EXPIRE },
@@ -1517,6 +1641,7 @@ lookup(char *s)
 		{ "tls",		TLS },
 		{ "tls-require",       	TLS_REQUIRE },
 		{ "to",			TO },
+		{ "user",		USER },
 		{ "userbase",		USERBASE },
 		{ "verify",		VERIFY },
 		{ "via",		VIA },
