@@ -178,7 +178,7 @@ typedef struct {
 %token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
 %token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARDONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
-%token	DISPATCHER USER SMARTHOST HELO HELOSOURCE MAILFROM
+%token	DISPATCHER USER SMARTHOST HELO HELOSOURCE MAILFROM EXPIRY
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.table>	table
@@ -466,10 +466,32 @@ dispatcher_mda {
 }
 ;
 
+dispatcher_option:
+EXPIRY STRING {
+	if (dispatcher->expiry) {
+		yyerror("expiry already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->expiry = delaytonum($2);
+	if (dispatcher->expiry == -1) {
+		yyerror("expiry delay \"%s\" is invalid", $2);
+		free($2);
+		YYERROR;
+	}
+	free($2);
+}
+;
+
+dispatcher_options:
+dispatcher_option dispatcher_options
+| /* empty */
+;
+
 dispatcher:
 DISPATCHER STRING {
 	dispatcher = xcalloc(1, sizeof *dispatcher, "dispatcher");
-} dispatcher_kind {
+} dispatcher_kind dispatcher_options {
 	dispatcher = NULL;
 }
 ;
@@ -1711,6 +1733,7 @@ lookup(char *s)
 		{ "domain",		DOMAIN },
 		{ "encryption",		ENCRYPTION },
 		{ "expire",		EXPIRE },
+		{ "expiry",		EXPIRY },
 		{ "filter",		FILTER },
 		{ "for",		FOR },
 		{ "forward-only",      	FORWARDONLY },

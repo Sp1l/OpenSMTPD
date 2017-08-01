@@ -1154,6 +1154,8 @@ struct dispatcher {
 		struct dispatcher_mda	mda;
 		struct dispatcher_mta	mta;
 	} agent;
+
+	time_t	expiry;
 };
 
 
