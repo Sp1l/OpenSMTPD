@@ -1132,6 +1132,20 @@ struct dispatcher_mda {
 };
 
 struct dispatcher_mta {
+	char	*helo;
+	char	*helo_source;
+
+	char	*source;
+
+	char	*ca;
+	char	*pki;
+
+	char	*mail_from;
+
+	char	*smarthost;
+	char	*auth;
+
+	uint8_t	backup;
 };
 
 struct dispatcher {

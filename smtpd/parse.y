@@ -178,7 +178,7 @@ typedef struct {
 %token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
 %token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARDONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
-%token	DISPATCHER USER
+%token	DISPATCHER USER SMARTHOST HELO HELOSOURCE MAILFROM
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.table>	table
@@ -337,8 +337,124 @@ MBOX {
 } dispatcher_mda_options
 ;
 
-dispatcher_mta	: RELAY {
+dispatcher_mta_option:
+HELO STRING {
+	if (dispatcher->agent.mta.helo) {
+		yyerror("helo already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.helo = $2;
 }
+| HELOSOURCE tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mta.helo_source) {
+		yyerror("helo-source mapping already specified for this dispatcher");
+		YYERROR;
+	}
+	if (!table_check_use(t, T_DYNAMIC|T_HASH, K_ADDRNAME)) {
+		yyerror("table \"%s\" may not be used for helo-source lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.helo_source = t->t_name;
+}
+| PKI STRING {
+	if (dispatcher->agent.mta.pki) {
+		yyerror("pki already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.pki = $2;
+}
+| CA STRING {
+	if (dispatcher->agent.mta.ca) {
+		yyerror("ca already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.ca = $2;
+}
+| SOURCE tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mta.source) {
+		yyerror("source mapping already specified for this dispatcher");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_SOURCE)) {
+		yyerror("table \"%s\" may not be used for source lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.source = t->t_name;
+}
+| MAILFROM STRING {
+	if (dispatcher->agent.mta.mail_from) {
+		yyerror("mail-from already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.mail_from = $2;
+}
+| BACKUP {
+	if (dispatcher->agent.mta.backup) {
+		yyerror("backup already specified for this dispatcher");
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.backup = 1;
+}
+| SMARTHOST tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mta.smarthost) {
+		yyerror("smarthost mapping already specified for this dispatcher");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_RELAYHOST)) {
+		yyerror("table \"%s\" may not be used for smarthost lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.smarthost = t->t_name;
+}
+| AUTH tables {
+	struct table   *t = $2;
+
+	if (dispatcher->agent.mta.smarthost == NULL) {
+		yyerror("auth may not be specified without smarthost on a dispatcher");
+		YYERROR;
+	}
+
+	if (dispatcher->agent.mta.auth) {
+		yyerror("auth mapping already specified for this dispatcher");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_HASH, K_CREDENTIALS)) {
+		yyerror("table \"%s\" may not be used for auth lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	dispatcher->agent.mta.auth = t->t_name;
+}
+;
+
+dispatcher_mta_options:
+dispatcher_mta_option dispatcher_mta_options
+| /* empty */
+;
+
+dispatcher_mta	:
+RELAY dispatcher_mta_options
 ;
 
 dispatcher_kind:
@@ -1599,6 +1715,8 @@ lookup(char *s)
 		{ "for",		FOR },
 		{ "forward-only",      	FORWARDONLY },
 		{ "from",		FROM },
+		{ "helo",		HELO },
+		{ "helo-source",       	HELOSOURCE },
 		{ "hostname",		HOSTNAME },
 		{ "hostnames",		HOSTNAMES },
 		{ "include",		INCLUDE },
@@ -1609,6 +1727,7 @@ lookup(char *s)
 		{ "listen",		LISTEN },
 		{ "lmtp",		LMTP },
 		{ "local",		LOCAL },
+		{ "mail-from",		MAILFROM },
 		{ "maildir",		MAILDIR },
 		{ "mask-source",	MASK_SOURCE },
 		{ "masquerade",		MASQUERADE },
@@ -1631,6 +1750,7 @@ lookup(char *s)
 		{ "sender",    		SENDER },
 		{ "senders",   		SENDERS },
 		{ "session",   		SESSION },
+		{ "smarthost",		SMARTHOST },
 		{ "smtps",		SMTPS },
 		{ "socket",		SOCKET },
 		{ "source",		SOURCE },
