@@ -179,11 +179,9 @@ ruleset_match_table_lookup(struct table *table, const char *key, enum table_serv
 static int
 ruleset_match_tag(struct match *m, const struct envelope *evp)
 {
-	const char	*key;
 	struct table	*table = table_find(m->tag_table, NULL);
 
-	key = evp->tag;
-	return ruleset_match_table_lookup(table, key, K_DOMAIN);
+	return ruleset_match_table_lookup(table, evp->tag, K_DOMAIN);
 }
 
 static int
@@ -208,21 +206,17 @@ ruleset_match_from(struct match *m, const struct envelope *evp)
 static int
 ruleset_match_to(struct match *m, const struct envelope *evp)
 {
-	const char	*key;
 	struct table	*table = table_find(m->to_table, NULL);
 
-	key = evp->dest.domain;
-	return ruleset_match_table_lookup(table, key, K_DOMAIN);
+	return ruleset_match_table_lookup(table, evp->dest.domain, K_DOMAIN);
 }
 
 static int
 ruleset_match_smtp_helo(struct match *m, const struct envelope *evp)
 {
-	const char	*key;
 	struct table	*table = table_find(m->smtp_helo_table, NULL);
 	
-	key = evp->helo;
-	return ruleset_match_table_lookup(table, key, K_DOMAIN);
+	return ruleset_match_table_lookup(table, evp->helo, K_DOMAIN);
 }
 
 static int
@@ -235,9 +229,6 @@ ruleset_match_smtp_starttls(struct match *m, const struct envelope *evp)
 static int
 ruleset_match_smtp_auth(struct match *m, const struct envelope *evp)
 {
-	const char	*key;
-	struct table	*table;
-
 	if (!(evp->flags & EF_AUTHENTICATED))
 		return 0;
 	
