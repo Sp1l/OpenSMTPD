@@ -1168,7 +1168,7 @@ struct match {
 	int8_t	to;
 	int8_t	from_socket;
 	
-	int8_t smtp_helo;
+	int8_t	smtp_helo;
 	int8_t	smtp_starttls;
 	int8_t	smtp_auth;
 	int8_t	smtp_mail_from;

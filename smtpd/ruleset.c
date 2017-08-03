@@ -38,6 +38,8 @@ static int ruleset_check_source(struct table *,
     const struct sockaddr_storage *, int);
 static int ruleset_check_mailaddr(struct table *, const struct mailaddr *);
 
+struct match *ruleset_match_new(const struct envelope *);
+
 struct rule *
 ruleset_match(const struct envelope *evp)
 {
@@ -155,4 +157,193 @@ ruleset_check_mailaddr(struct table *table, const struct mailaddr *maddr)
 		break;
 	}
 	return 0;
+}
+
+/* --- */
+static int
+ruleset_match_table_lookup(struct table *table, const char *key, enum table_service service)
+{
+	switch (table_lookup(table, NULL, key, service, NULL)) {
+	case 1:
+		return 1;
+	case -1:
+		log_warnx("warn: failure to perform a table lookup on table %s",
+		    table->t_name);
+		return -1;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int
+ruleset_match_tag(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table = table_find(m->tag_table, NULL);
+
+	key = evp->tag;
+	return ruleset_match_table_lookup(table, key, K_DOMAIN);
+}
+
+static int
+ruleset_match_from(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table = table_find(m->from_table, NULL);
+
+	if (m->from_socket) {
+		/* XXX - socket needs to be distinguished from "local" */
+		return -1;
+	}
+
+	/* XXX - socket should also be considered local */
+	if (evp->flags & EF_INTERNAL)
+		key = "local";
+	else
+		key = ss_to_text(&evp->ss);
+	return ruleset_match_table_lookup(table, key, K_NETADDR);
+}
+
+static int
+ruleset_match_to(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table = table_find(m->to_table, NULL);
+
+	key = evp->dest.domain;
+	return ruleset_match_table_lookup(table, key, K_DOMAIN);
+}
+
+static int
+ruleset_match_smtp_helo(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table = table_find(m->smtp_helo_table, NULL);
+	
+	key = evp->helo;
+	return ruleset_match_table_lookup(table, key, K_DOMAIN);
+}
+
+static int
+ruleset_match_smtp_starttls(struct match *m, const struct envelope *evp)
+{
+	/* XXX - not until TLS flag is added to envelope */
+	return -1;
+}
+
+static int
+ruleset_match_smtp_auth(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table;
+
+	if (!(evp->flags & EF_AUTHENTICATED))
+		return 0;
+	
+	if (m->smtp_auth_table) {
+		/* XXX - not until smtp_session->username is added to envelope */
+		/*
+		 * table = table_find(m->from_table, NULL);
+		 * key = evp->username;
+		 * return ruleset_match_table_lookup(table, key, K_CREDENTIALS);
+		 */
+		return -1;
+
+	}
+	return 1;
+}
+
+static int
+ruleset_match_smtp_mail_from(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table = table_find(m->from_table, NULL);
+	
+	if ((key = mailaddr_to_text(&evp->sender)) == NULL)
+		return -1;
+	return ruleset_match_table_lookup(table, key, K_MAILADDR);
+}
+
+static int
+ruleset_match_smtp_rcpt_to(struct match *m, const struct envelope *evp)
+{
+	const char	*key;
+	struct table	*table = table_find(m->from_table, NULL);
+	
+	if ((key = mailaddr_to_text(&evp->dest)) == NULL)
+		return -1;
+	return ruleset_match_table_lookup(table, key, K_MAILADDR);
+}
+
+struct match *
+ruleset_match_new(const struct envelope *evp)
+{
+	struct match	*m;
+	int		ret;
+	
+	TAILQ_FOREACH(m, env->sc_matches, entry) {
+		if (m->tag) {
+			if ((ret = ruleset_match_tag(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->tag > 0))
+				continue;
+		}
+		if (m->from) {
+			if ((ret = ruleset_match_from(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->from > 0))
+				continue;
+		}
+		if (m->to) {
+			if ((ret = ruleset_match_to(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->to > 0))
+				continue;
+		}
+		if (m->smtp_helo) {
+			if ((ret = ruleset_match_smtp_helo(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->smtp_helo > 0))
+				continue;
+		}
+		if (m->smtp_auth) {
+			if ((ret = ruleset_match_smtp_auth(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->smtp_auth > 0))
+				continue;
+		}
+		if (m->smtp_starttls) {
+			if ((ret = ruleset_match_smtp_starttls(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->smtp_starttls > 0))
+				continue;
+		}
+		if (m->smtp_mail_from) {
+			if ((ret = ruleset_match_smtp_mail_from(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->smtp_mail_from > 0))
+				continue;
+		}
+		if (m->smtp_rcpt_to) {
+			if ((ret = ruleset_match_smtp_rcpt_to(m, evp)) == -1)
+				goto tempfail;
+			if (!(ret && m->smtp_rcpt_to > 0))
+				continue;
+		}
+		goto matched;
+	}
+
+	errno = 0;
+	log_trace(TRACE_RULES, "no rule matched");
+	return (NULL);
+
+tempfail:
+	errno = EAGAIN;
+	log_trace(TRACE_RULES, "temporary failure in processing of a rule");
+	return (NULL);
+	
+matched:
+	log_trace(TRACE_RULES, "rule matched");
+	return m;
 }
