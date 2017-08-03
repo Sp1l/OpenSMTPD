@@ -492,6 +492,10 @@ dispatcher_option dispatcher_options
 
 dispatcher:
 DISPATCHER STRING {
+	if (dict_get(conf->sc_dispatchers, $2)) {
+		yyerror("dispatcher already declared with that name: %s", $2);
+		YYERROR;
+	}
 	dispatcher = xcalloc(1, sizeof *dispatcher, "dispatcher");
 } dispatcher_type dispatcher_options {
 	dict_set(conf->sc_dispatchers, $2, dispatcher);
