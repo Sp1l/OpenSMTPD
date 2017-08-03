@@ -1158,6 +1158,30 @@ struct dispatcher {
 	time_t	expiry;
 };
 
+struct match {
+	uint8_t	tag;
+	uint8_t	from;
+	uint8_t	from_socket;
+	uint8_t	to;
+	
+	uint8_t smtp_helo;
+	uint8_t	smtp_starttls;
+	uint8_t	smtp_auth;
+	uint8_t	smtp_mail_from;
+	uint8_t	smtp_rcpt_to;
+
+
+	char	*tag_table;
+	char	*from_table;
+	char	*to_table;
+
+	char	*smtp_helo_table;
+	char	*smtp_auth_table;
+	char	*smtp_mail_from_table;
+	char	*smtp_rcpt_to_table;
+
+};
+
 
 /* aliases.c */
 int aliases_get(struct expand *, const char *);

@@ -103,6 +103,7 @@ static struct pki	*pki;
 static struct ca	*sca;
 
 struct dispatcher	*dispatcher;
+struct match		*match;
 
 
 enum listen_options {
@@ -173,12 +174,12 @@ typedef struct {
 
 %token	AS QUEUE COMPRESSION ENCRYPTION MAXMESSAGESIZE MAXMTADEFERRED LISTEN ON ANY PORT EXPIRE
 %token	TABLE SMTPS CERTIFICATE DOMAIN BOUNCEWARN LIMIT INET4 INET6 NODSN SESSION
-%token  RELAY BACKUP VIA DELIVER TO LMTP MAILDIR MBOX RCPTTO HOSTNAME HOSTNAMES
+%token  RELAY BACKUP VIA DELIVER TO LMTP MAILDIR MBOX RCPT_TO HOSTNAME HOSTNAMES
 %token	ACCEPT REJECT INCLUDE ERROR MDA FROM FOR SOURCE MTA PKI SCHEDULER
 %token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
 %token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARDONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
-%token	DISPATCHER USER SMARTHOST HELO HELOSOURCE MAILFROM EXPIRY
+%token	DISPATCHER USER SMARTHOST HELO HELOSOURCE MAIL_FROM EXPIRY MATCH STARTTLS SRC
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.table>	table
@@ -194,6 +195,7 @@ grammar		: /* empty */
 		| grammar main '\n'
 		| grammar table '\n'
 		| grammar dispatcher '\n'
+		| grammar match '\n'
 		| grammar rule '\n'
 		| grammar error '\n'		{ file->errors++; }
 		;
@@ -393,7 +395,7 @@ HELO STRING {
 
 	dispatcher->agent.mta.source = t->t_name;
 }
-| MAILFROM STRING {
+| MAIL_FROM STRING {
 	if (dispatcher->agent.mta.mail_from) {
 		yyerror("mail-from already specified for this dispatcher");
 		YYERROR;
@@ -457,7 +459,7 @@ dispatcher_mta	:
 RELAY dispatcher_mta_options
 ;
 
-dispatcher_kind:
+dispatcher_type:
 dispatcher_mda {
 	dispatcher->type = DISPATCHER_MDA;
 }
@@ -491,10 +493,210 @@ dispatcher_option dispatcher_options
 dispatcher:
 DISPATCHER STRING {
 	dispatcher = xcalloc(1, sizeof *dispatcher, "dispatcher");
-} dispatcher_kind dispatcher_options {
+} dispatcher_type dispatcher_options {
 	dispatcher = NULL;
 }
 ;
+
+match_option:
+TAG tables {
+	struct table   *t = $2;
+
+	if (match->tag) {
+		yyerror("mail-helo already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_DOMAIN)) {
+		yyerror("table \"%s\" may not be used for helo lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->tag = 1;
+	match->tag_table = t->t_name;
+}
+| HELO tables {
+	struct table   *t = $2;
+
+	if (match->smtp_helo) {
+		yyerror("mail-helo already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_DOMAIN)) {
+		yyerror("table \"%s\" may not be used for helo lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->smtp_helo = 1;
+	match->smtp_helo_table = t->t_name;
+}
+| STARTTLS {
+	if (match->smtp_starttls) {
+		yyerror("starttls already specified for this rule");
+		YYERROR;
+	}
+	match->smtp_starttls = 1;
+}
+| AUTH {
+	if (match->smtp_auth) {
+		yyerror("auth already specified for this rule");
+		YYERROR;
+	}
+	match->smtp_auth = 1;
+}
+| AUTH tables {
+	struct table   *t = $2;
+
+	if (match->smtp_auth) {
+		yyerror("auth already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_CREDENTIALS)) {
+		yyerror("table \"%s\" may not be used for auth lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->smtp_auth = 1;
+	match->smtp_auth_table = t->t_name;
+}
+| MAIL_FROM tables {
+	struct table   *t = $2;
+
+	if (match->smtp_mail_from) {
+		yyerror("mail-from already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_MAILADDR)) {
+		yyerror("table \"%s\" may not be used for mail-from lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->smtp_mail_from = 1;
+	match->smtp_mail_from_table = t->t_name;
+}
+| RCPT_TO tables {
+	struct table   *t = $2;
+
+	if (match->smtp_rcpt_to) {
+		yyerror("rcpt-to already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_MAILADDR)) {
+		yyerror("table \"%s\" may not be used for rcpt-to lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->smtp_rcpt_to = 1;
+	match->smtp_rcpt_to_table = t->t_name;
+}
+
+| FROM SOCKET {
+	if (match->from) {
+		yyerror("from already specified for this rule");
+		YYERROR;
+	}
+	match->from = 1;
+	match->from_socket = 1;
+}
+| FROM LOCAL {
+	struct table	*t = table_find("<localhost>", NULL);
+
+	if (match->from) {
+		yyerror("from already specified for this rule");
+		YYERROR;
+	}
+	match->from = 1;
+	match->from_table = t->t_name;
+}
+| FROM ANY {
+	struct table	*t = table_find("<anyhost>", NULL);
+
+	if (match->from) {
+		yyerror("from already specified for this rule");
+		YYERROR;
+	}
+	match->from = 1;
+	match->from_table = t->t_name;
+}
+| FROM SRC tables {
+	struct table   *t = $3;
+
+	if (match->from) {
+		yyerror("from already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_NETADDR)) {
+		yyerror("table \"%s\" may not be used for from lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->from = 1;
+	match->from_table = t->t_name;
+}
+
+| FOR LOCAL {
+	struct table   *t = table_find("<localnames>", NULL);
+
+	if (match->to) {
+		yyerror("for already specified for this rule");
+		YYERROR;
+	}
+	match->to = 1;
+	match->to_table = t->t_name;
+}
+| FOR ANY {
+	struct table   *t = table_find("<anydestination>", NULL);
+
+	if (match->to) {
+		yyerror("for already specified for this rule");
+		YYERROR;
+	}
+	match->to = 1;
+	match->to_table = t->t_name;
+}
+| FOR DOMAIN tables {
+	struct table   *t = $3;
+
+	if (match->to) {
+		yyerror("for already specified for this rule");
+		YYERROR;
+	}
+
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_DOMAIN)) {
+		yyerror("table \"%s\" may not be used for 'for' lookups",
+		    t->t_name);
+		YYERROR;
+	}
+
+	match->to = 1;
+	match->to_table = t->t_name;
+}
+;
+
+match_options:
+match_option match_options
+| /* empty */
+;
+
+match:
+MATCH {
+	match = xcalloc(1, sizeof *match, "match");
+} match_options ARROW STRING{
+	match = NULL;
+}
+;
+
 
 /*---------*/
 size		: NUMBER		{
@@ -1425,7 +1627,7 @@ deliver_action	: DELIVER TO MAILDIR			{
 				fatal("invalid lmtp destination");
 			free($4);
 		}
-		| DELIVER TO LMTP STRING RCPTTO deliver_as 	{
+		| DELIVER TO LMTP STRING RCPT_TO deliver_as 	{
 			rule->r_action = A_LMTP;
 			if (strchr($4, ':') || $4[0] == '/') {
 				if (strlcpy(rule->r_value.buffer, $4,
@@ -1750,10 +1952,11 @@ lookup(char *s)
 		{ "listen",		LISTEN },
 		{ "lmtp",		LMTP },
 		{ "local",		LOCAL },
-		{ "mail-from",		MAILFROM },
+		{ "mail-from",		MAIL_FROM },
 		{ "maildir",		MAILDIR },
 		{ "mask-source",	MASK_SOURCE },
 		{ "masquerade",		MASQUERADE },
+		{ "match",		MATCH },
 		{ "max-message-size",  	MAXMESSAGESIZE },
 		{ "max-mta-deferred",  	MAXMTADEFERRED },
 		{ "mbox",		MBOX },
@@ -1764,7 +1967,7 @@ lookup(char *s)
 		{ "pki",		PKI },
 		{ "port",		PORT },
 		{ "queue",		QUEUE },
-		{ "rcpt-to",		RCPTTO },
+		{ "rcpt-to",		RCPT_TO },
 		{ "received-auth",     	RECEIVEDAUTH },
 		{ "recipient",		RECIPIENT },
 		{ "reject",		REJECT },
@@ -1777,6 +1980,8 @@ lookup(char *s)
 		{ "smtps",		SMTPS },
 		{ "socket",		SOCKET },
 		{ "source",		SOURCE },
+		{ "src",		SRC },
+		{ "starttls",		STARTTLS },
 		{ "subaddressing-delimiter",	SUBADDRESSING_DELIM },
 		{ "table",		TABLE },
 		{ "tag",		TAG },
