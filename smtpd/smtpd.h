@@ -627,6 +627,7 @@ struct smtpd {
 
 	TAILQ_HEAD(rulelist, rule)		*sc_rules;
 	TAILQ_HEAD(matchlist, match)		*sc_matches;
+	struct dict				*sc_dispatchers;
 
 	struct dict			       *sc_ca_dict;
 	struct dict			       *sc_pki_dict;

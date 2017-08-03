@@ -494,6 +494,7 @@ dispatcher:
 DISPATCHER STRING {
 	dispatcher = xcalloc(1, sizeof *dispatcher, "dispatcher");
 } dispatcher_type dispatcher_options {
+	dict_set(conf->sc_dispatchers, $2, dispatcher);
 	dispatcher = NULL;
 }
 ;
@@ -2344,6 +2345,7 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	conf->sc_tables_dict = calloc(1, sizeof(*conf->sc_tables_dict));
 	conf->sc_rules = calloc(1, sizeof(*conf->sc_rules));
 	conf->sc_matches = calloc(1, sizeof(*conf->sc_matches));
+	conf->sc_dispatchers = calloc(1, sizeof(*conf->sc_dispatchers));
 	conf->sc_listeners = calloc(1, sizeof(*conf->sc_listeners));
 	conf->sc_ca_dict = calloc(1, sizeof(*conf->sc_ca_dict));
 	conf->sc_pki_dict = calloc(1, sizeof(*conf->sc_pki_dict));
@@ -2356,6 +2358,7 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	if (conf->sc_tables_dict == NULL	||
 	    conf->sc_rules == NULL		||
 	    conf->sc_matches == NULL		||
+	    conf->sc_dispatchers == NULL	||
 	    conf->sc_listeners == NULL		||
 	    conf->sc_ca_dict == NULL		||
 	    conf->sc_pki_dict == NULL		||
@@ -2365,6 +2368,7 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 		free(conf->sc_tables_dict);
 		free(conf->sc_rules);
 		free(conf->sc_matches);
+		free(conf->sc_dispatchers);
 		free(conf->sc_listeners);
 		free(conf->sc_ca_dict);
 		free(conf->sc_pki_dict);
@@ -2379,7 +2383,8 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	rule = NULL;
 
 	dict_init(&conf->sc_filters);
-
+	dict_init(conf->sc_dispatchers);
+	
 	dict_init(conf->sc_ca_dict);
 	dict_init(conf->sc_pki_dict);
 	dict_init(conf->sc_ssl_dict);
