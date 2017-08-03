@@ -626,6 +626,7 @@ struct smtpd {
 	TAILQ_HEAD(listenerlist, listener)	*sc_listeners;
 
 	TAILQ_HEAD(rulelist, rule)		*sc_rules;
+	TAILQ_HEAD(matchlist, match)		*sc_matches;
 
 	struct dict			       *sc_ca_dict;
 	struct dict			       *sc_pki_dict;
@@ -1159,6 +1160,8 @@ struct dispatcher {
 };
 
 struct match {
+	TAILQ_ENTRY(match)	entry;
+	
 	uint8_t	tag;
 	uint8_t	from;
 	uint8_t	from_socket;
