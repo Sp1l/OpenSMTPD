@@ -1223,6 +1223,7 @@ int	uncompress_file(FILE *, FILE *);
 #define PURGE_RULES		0x04
 #define PURGE_PKI		0x08
 #define PURGE_PKI_KEYS		0x10
+#define PURGE_DISPATCHERS	0x20
 #define PURGE_EVERYTHING	0x0f
 void purge_config(uint8_t);
 void config_process(enum smtp_proc_type);

@@ -75,7 +75,7 @@ ca(void)
 {
 	struct passwd	*pw;
 
-	purge_config(PURGE_LISTENERS|PURGE_TABLES|PURGE_RULES);
+	purge_config(PURGE_LISTENERS|PURGE_TABLES|PURGE_RULES|PURGE_DISPATCHERS);
 
 	if ((pw = getpwnam(SMTPD_USER)) == NULL)
 		fatalx("unknown user " SMTPD_USER);
