@@ -500,25 +500,25 @@ DISPATCHER STRING {
 ;
 
 match_option:
-TAG tables {
-	struct table   *t = $2;
+negation TAG tables {
+	struct table   *t = $3;
 
 	if (match->tag) {
-		yyerror("mail-helo already specified for this rule");
+		yyerror("tag already specified for this rule");
 		YYERROR;
 	}
 
 	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_DOMAIN)) {
-		yyerror("table \"%s\" may not be used for helo lookups",
+		yyerror("table \"%s\" may not be used for tag lookups",
 		    t->t_name);
 		YYERROR;
 	}
 
-	match->tag = 1;
+	match->tag = $1 ? -1 : 1;
 	match->tag_table = t->t_name;
 }
-| HELO tables {
-	struct table   *t = $2;
+| negation HELO tables {
+	struct table   *t = $3;
 
 	if (match->smtp_helo) {
 		yyerror("mail-helo already specified for this rule");
@@ -531,25 +531,25 @@ TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_helo = 1;
+	match->smtp_helo = $1 ? -1 : 1;
 	match->smtp_helo_table = t->t_name;
 }
-| STARTTLS {
+| negation STARTTLS {
 	if (match->smtp_starttls) {
 		yyerror("starttls already specified for this rule");
 		YYERROR;
 	}
-	match->smtp_starttls = 1;
+	match->smtp_starttls = $1 ? -1 : 1;
 }
-| AUTH {
+| negation AUTH {
 	if (match->smtp_auth) {
 		yyerror("auth already specified for this rule");
 		YYERROR;
 	}
-	match->smtp_auth = 1;
+	match->smtp_auth = $1 ? -1 : 1;
 }
-| AUTH tables {
-	struct table   *t = $2;
+| negation AUTH tables {
+	struct table   *t = $3;
 
 	if (match->smtp_auth) {
 		yyerror("auth already specified for this rule");
@@ -562,11 +562,11 @@ TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_auth = 1;
+	match->smtp_auth = $1 ? -1 : 1;
 	match->smtp_auth_table = t->t_name;
 }
-| MAIL_FROM tables {
-	struct table   *t = $2;
+| negation MAIL_FROM tables {
+	struct table   *t = $3;
 
 	if (match->smtp_mail_from) {
 		yyerror("mail-from already specified for this rule");
@@ -579,11 +579,11 @@ TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_mail_from = 1;
+	match->smtp_mail_from = $1 ? -1 : 1;
 	match->smtp_mail_from_table = t->t_name;
 }
-| RCPT_TO tables {
-	struct table   *t = $2;
+| negation RCPT_TO tables {
+	struct table   *t = $3;
 
 	if (match->smtp_rcpt_to) {
 		yyerror("rcpt-to already specified for this rule");
@@ -596,40 +596,40 @@ TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_rcpt_to = 1;
+	match->smtp_rcpt_to = $1 ? -1 : 1;
 	match->smtp_rcpt_to_table = t->t_name;
 }
 
-| FROM SOCKET {
+| negation FROM SOCKET {
 	if (match->from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
-	match->from = 1;
+	match->from = $1 ? -1 : 1;
 	match->from_socket = 1;
 }
-| FROM LOCAL {
+| negation FROM LOCAL {
 	struct table	*t = table_find("<localhost>", NULL);
 
 	if (match->from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
-	match->from = 1;
+	match->from = $1 ? -1 : 1;
 	match->from_table = t->t_name;
 }
-| FROM ANY {
+| negation FROM ANY {
 	struct table	*t = table_find("<anyhost>", NULL);
 
 	if (match->from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
-	match->from = 1;
+	match->from = $1 ? -1 : 1;
 	match->from_table = t->t_name;
 }
-| FROM SRC tables {
-	struct table   *t = $3;
+| negation FROM SRC tables {
+	struct table   *t = $4;
 
 	if (match->from) {
 		yyerror("from already specified for this rule");
@@ -642,32 +642,32 @@ TAG tables {
 		YYERROR;
 	}
 
-	match->from = 1;
+	match->from = $1 ? -1 : 1;
 	match->from_table = t->t_name;
 }
 
-| FOR LOCAL {
+| negation FOR LOCAL {
 	struct table   *t = table_find("<localnames>", NULL);
 
 	if (match->to) {
 		yyerror("for already specified for this rule");
 		YYERROR;
 	}
-	match->to = 1;
+	match->to = $1 ? -1 : 1;
 	match->to_table = t->t_name;
 }
-| FOR ANY {
+| negation FOR ANY {
 	struct table   *t = table_find("<anydestination>", NULL);
 
 	if (match->to) {
 		yyerror("for already specified for this rule");
 		YYERROR;
 	}
-	match->to = 1;
+	match->to = $1 ? -1 : 1;
 	match->to_table = t->t_name;
 }
-| FOR DOMAIN tables {
-	struct table   *t = $3;
+| negation FOR DOMAIN tables {
+	struct table   *t = $4;
 
 	if (match->to) {
 		yyerror("for already specified for this rule");
@@ -680,7 +680,7 @@ TAG tables {
 		YYERROR;
 	}
 
-	match->to = 1;
+	match->to = $1 ? -1 : 1;
 	match->to_table = t->t_name;
 }
 ;

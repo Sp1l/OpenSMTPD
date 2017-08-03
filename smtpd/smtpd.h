@@ -1163,16 +1163,16 @@ struct dispatcher {
 struct match {
 	TAILQ_ENTRY(match)	entry;
 	
-	uint8_t	tag;
-	uint8_t	from;
-	uint8_t	from_socket;
-	uint8_t	to;
+	int8_t	tag;
+	int8_t	from;
+	int8_t	to;
+	int8_t	from_socket;
 	
-	uint8_t smtp_helo;
-	uint8_t	smtp_starttls;
-	uint8_t	smtp_auth;
-	uint8_t	smtp_mail_from;
-	uint8_t	smtp_rcpt_to;
+	int8_t smtp_helo;
+	int8_t	smtp_starttls;
+	int8_t	smtp_auth;
+	int8_t	smtp_mail_from;
+	int8_t	smtp_rcpt_to;
 
 
 	char	*tag_table;
