@@ -694,6 +694,11 @@ match:
 MATCH {
 	match = xcalloc(1, sizeof *match, "match");
 } match_options ARROW STRING {
+	if (dict_get(conf->sc_dispatchers, $5) == NULL) {
+		yyerror("no such dispatcher: %s", $5);
+		YYERROR;
+	}
+	match->dispatcher = $5;
 	TAILQ_INSERT_TAIL(conf->sc_matches, match, entry);
 	match = NULL;
 }
