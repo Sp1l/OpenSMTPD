@@ -1441,6 +1441,7 @@ int queue_message_walk(struct envelope *, uint32_t, int *, void **);
 
 /* ruleset.c */
 struct rule *ruleset_match(const struct envelope *);
+struct match *ruleset_match_new(const struct envelope *);
 
 
 /* scheduler.c */
@@ -1546,6 +1547,7 @@ const char *time_to_text(time_t);
 const char *duration_to_text(time_t);
 const char *relayhost_to_text(const struct relayhost *);
 const char *rule_to_text(struct rule *);
+const char *match_to_text(struct match *);
 const char *sockaddr_to_text(struct sockaddr *);
 const char *mailaddr_to_text(const struct mailaddr *);
 const char *expandnode_to_text(struct expandnode *);

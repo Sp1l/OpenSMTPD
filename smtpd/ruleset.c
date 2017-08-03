@@ -38,8 +38,6 @@ static int ruleset_check_source(struct table *,
     const struct sockaddr_storage *, int);
 static int ruleset_check_mailaddr(struct table *, const struct mailaddr *);
 
-struct match *ruleset_match_new(const struct envelope *);
-
 struct rule *
 ruleset_match(const struct envelope *evp)
 {
@@ -249,7 +247,7 @@ static int
 ruleset_match_smtp_mail_from(struct match *m, const struct envelope *evp)
 {
 	const char	*key;
-	struct table	*table = table_find(m->from_table, NULL);
+	struct table	*table = table_find(m->smtp_mail_from_table, NULL);
 	
 	if ((key = mailaddr_to_text(&evp->sender)) == NULL)
 		return -1;
@@ -260,66 +258,71 @@ static int
 ruleset_match_smtp_rcpt_to(struct match *m, const struct envelope *evp)
 {
 	const char	*key;
-	struct table	*table = table_find(m->from_table, NULL);
+	struct table	*table = table_find(m->smtp_rcpt_to_table, NULL);
 	
 	if ((key = mailaddr_to_text(&evp->dest)) == NULL)
 		return -1;
 	return ruleset_match_table_lookup(table, key, K_MAILADDR);
 }
 
+#define MATCH_NEGATION(ret, cond)	\
+	((ret == 0 && cond > 0) || (ret != 0 && cond < 0))
+
 struct match *
 ruleset_match_new(const struct envelope *evp)
 {
 	struct match	*m;
 	int		ret;
+	int		i = 0;
 	
 	TAILQ_FOREACH(m, env->sc_matches, entry) {
+		++i;
 		if (m->tag) {
 			if ((ret = ruleset_match_tag(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->tag > 0))
+			if (MATCH_NEGATION(ret, m->tag))
 				continue;
 		}
 		if (m->from) {
 			if ((ret = ruleset_match_from(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->from > 0))
+			if (MATCH_NEGATION(ret, m->from))
 				continue;
 		}
 		if (m->to) {
 			if ((ret = ruleset_match_to(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->to > 0))
+			if (MATCH_NEGATION(ret, m->to))
 				continue;
 		}
 		if (m->smtp_helo) {
 			if ((ret = ruleset_match_smtp_helo(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->smtp_helo > 0))
+			if (MATCH_NEGATION(ret, m->smtp_helo))
 				continue;
 		}
 		if (m->smtp_auth) {
 			if ((ret = ruleset_match_smtp_auth(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->smtp_auth > 0))
+			if (MATCH_NEGATION(ret, m->smtp_auth))
 				continue;
 		}
 		if (m->smtp_starttls) {
 			if ((ret = ruleset_match_smtp_starttls(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->smtp_starttls > 0))
+			if (MATCH_NEGATION(ret, m->smtp_starttls))
 				continue;
 		}
 		if (m->smtp_mail_from) {
 			if ((ret = ruleset_match_smtp_mail_from(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->smtp_mail_from > 0))
+			if (MATCH_NEGATION(ret, m->smtp_mail_from))
 				continue;
 		}
 		if (m->smtp_rcpt_to) {
 			if ((ret = ruleset_match_smtp_rcpt_to(m, evp)) == -1)
 				goto tempfail;
-			if (!(ret && m->smtp_rcpt_to > 0))
+			if (MATCH_NEGATION(ret, m->smtp_rcpt_to))
 				continue;
 		}
 		goto matched;
@@ -335,6 +338,6 @@ tempfail:
 	return (NULL);
 	
 matched:
-	log_trace(TRACE_RULES, "rule matched");
+	log_trace(TRACE_RULES, "rule #%d matched: %s", i, match_to_text(m));
 	return m;
 }
