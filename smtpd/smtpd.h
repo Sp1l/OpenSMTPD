@@ -1184,6 +1184,7 @@ struct match {
 	char	*smtp_mail_from_table;
 	char	*smtp_rcpt_to_table;
 
+	char	*dispatcher;
 };
 
 
