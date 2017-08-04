@@ -591,80 +591,80 @@ match_to_text(struct match *m)
 
 	memset(buf, 0, sizeof buf);
 	(void)strlcpy(buf, "match ", sizeof buf);
-	if (m->tag) {
-		if (m->tag < 0)
+	if (m->flag_tag) {
+		if (m->flag_tag < 0)
 			(void)strlcat(buf, "!", sizeof buf);
 		(void)strlcat(buf, "tag ", sizeof buf);
-		(void)strlcat(buf, m->tag_table, sizeof buf);
+		(void)strlcat(buf, m->table_tag, sizeof buf);
 		(void)strlcat(buf, " ", sizeof buf);
 	}
 
-	if (m->from) {
-		if (m->from < 0)
+	if (m->flag_from) {
+		if (m->flag_from < 0)
 			(void)strlcat(buf, "!", sizeof buf);
-		if (strcmp(m->from_table, "<anyhost>") == 0)
+		if (strcmp(m->table_from, "<anyhost>") == 0)
 			(void)strlcat(buf, "from any ", sizeof buf);
-		else if (strcmp(m->from_table, "<localhost>") == 0)
+		else if (strcmp(m->table_from, "<localhost>") == 0)
 			(void)strlcat(buf, "from local", sizeof buf);
 		else {
 			(void)strlcat(buf, "from src ", sizeof buf);
-			(void)strlcat(buf, m->from_table, sizeof buf);
+			(void)strlcat(buf, m->table_from, sizeof buf);
 			(void)strlcat(buf, " ", sizeof buf);
 		}
 	}
 
-	if (m->to) {
-		if (m->to < 0)
+	if (m->flag_for) {
+		if (m->flag_for < 0)
 			(void)strlcat(buf, "!", sizeof buf);
-		if (strcmp(m->to_table, "<anydestination>") == 0)
+		if (strcmp(m->table_for, "<anydestination>") == 0)
 			(void)strlcat(buf, "for any ", sizeof buf);
-		else if (strcmp(m->to_table, "<localnames>") == 0)
+		else if (strcmp(m->table_for, "<localnames>") == 0)
 			(void)strlcat(buf, "for local ", sizeof buf);
 		else {
 			(void)strlcat(buf, "for domain ", sizeof buf);
-			(void)strlcat(buf, m->to_table, sizeof buf);
+			(void)strlcat(buf, m->table_for, sizeof buf);
 			(void)strlcat(buf, " ", sizeof buf);
 		}
 	}
 
-	if (m->smtp_helo) {
-		if (m->smtp_helo < 0)
+	if (m->flag_smtp_helo) {
+		if (m->flag_smtp_helo < 0)
 			(void)strlcat(buf, "!", sizeof buf);
 		(void)strlcat(buf, "helo ", sizeof buf);
-		(void)strlcat(buf, m->smtp_helo_table, sizeof buf);
+		(void)strlcat(buf, m->table_smtp_helo, sizeof buf);
 		(void)strlcat(buf, " ", sizeof buf);
 	}
 
-	if (m->smtp_auth) {
-		if (m->smtp_auth < 0)
+	if (m->flag_smtp_auth) {
+		if (m->flag_smtp_auth < 0)
 			(void)strlcat(buf, "!", sizeof buf);
 		(void)strlcat(buf, "auth ", sizeof buf);
-		if (m->smtp_auth_table) {
-			(void)strlcat(buf, m->smtp_auth_table, sizeof buf);
+		if (m->table_smtp_auth) {
+			(void)strlcat(buf, m->table_smtp_auth, sizeof buf);
 			(void)strlcat(buf, " ", sizeof buf);
 		}
 	}
 
-	if (m->smtp_starttls) {
-		if (m->smtp_starttls < 0)
+	if (m->flag_smtp_starttls) {
+		if (m->flag_smtp_starttls < 0)
 			(void)strlcat(buf, "!", sizeof buf);
 		(void)strlcat(buf, "starttls ", sizeof buf);
 		(void)strlcat(buf, " ", sizeof buf);
 	}
 
-	if (m->smtp_mail_from) {
-		if (m->smtp_mail_from < 0)
+	if (m->flag_smtp_mail_from) {
+		if (m->flag_smtp_mail_from < 0)
 			(void)strlcat(buf, "!", sizeof buf);
 		(void)strlcat(buf, "mail-from ", sizeof buf);
-		(void)strlcat(buf, m->smtp_mail_from_table, sizeof buf);
+		(void)strlcat(buf, m->table_smtp_mail_from, sizeof buf);
 		(void)strlcat(buf, " ", sizeof buf);
 	}
 
-	if (m->smtp_rcpt_to) {
-		if (m->smtp_rcpt_to < 0)
+	if (m->flag_smtp_rcpt_to) {
+		if (m->flag_smtp_rcpt_to < 0)
 			(void)strlcat(buf, "!", sizeof buf);
 		(void)strlcat(buf, "rcpt-to ", sizeof buf);
-		(void)strlcat(buf, m->smtp_rcpt_to_table, sizeof buf);
+		(void)strlcat(buf, m->table_smtp_rcpt_to, sizeof buf);
 		(void)strlcat(buf, " ", sizeof buf);
 	}
 

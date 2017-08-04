@@ -507,7 +507,7 @@ match_option:
 negation TAG tables {
 	struct table   *t = $3;
 
-	if (match->tag) {
+	if (match->flag_tag) {
 		yyerror("tag already specified for this rule");
 		YYERROR;
 	}
@@ -518,13 +518,13 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->tag = $1 ? -1 : 1;
-	match->tag_table = t->t_name;
+	match->flag_tag = $1 ? -1 : 1;
+	match->table_tag = t->t_name;
 }
 | negation HELO tables {
 	struct table   *t = $3;
 
-	if (match->smtp_helo) {
+	if (match->flag_smtp_helo) {
 		yyerror("mail-helo already specified for this rule");
 		YYERROR;
 	}
@@ -535,27 +535,27 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_helo = $1 ? -1 : 1;
-	match->smtp_helo_table = t->t_name;
+	match->flag_smtp_helo = $1 ? -1 : 1;
+	match->table_smtp_helo = t->t_name;
 }
 | negation STARTTLS {
-	if (match->smtp_starttls) {
+	if (match->flag_smtp_starttls) {
 		yyerror("starttls already specified for this rule");
 		YYERROR;
 	}
-	match->smtp_starttls = $1 ? -1 : 1;
+	match->flag_smtp_starttls = $1 ? -1 : 1;
 }
 | negation AUTH {
-	if (match->smtp_auth) {
+	if (match->flag_smtp_auth) {
 		yyerror("auth already specified for this rule");
 		YYERROR;
 	}
-	match->smtp_auth = $1 ? -1 : 1;
+	match->flag_smtp_auth = $1 ? -1 : 1;
 }
 | negation AUTH tables {
 	struct table   *t = $3;
 
-	if (match->smtp_auth) {
+	if (match->flag_smtp_auth) {
 		yyerror("auth already specified for this rule");
 		YYERROR;
 	}
@@ -566,13 +566,13 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_auth = $1 ? -1 : 1;
-	match->smtp_auth_table = t->t_name;
+	match->flag_smtp_auth = $1 ? -1 : 1;
+	match->table_smtp_auth = t->t_name;
 }
 | negation MAIL_FROM tables {
 	struct table   *t = $3;
 
-	if (match->smtp_mail_from) {
+	if (match->flag_smtp_mail_from) {
 		yyerror("mail-from already specified for this rule");
 		YYERROR;
 	}
@@ -583,13 +583,13 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_mail_from = $1 ? -1 : 1;
-	match->smtp_mail_from_table = t->t_name;
+	match->flag_smtp_mail_from = $1 ? -1 : 1;
+	match->table_smtp_mail_from = t->t_name;
 }
 | negation RCPT_TO tables {
 	struct table   *t = $3;
 
-	if (match->smtp_rcpt_to) {
+	if (match->flag_smtp_rcpt_to) {
 		yyerror("rcpt-to already specified for this rule");
 		YYERROR;
 	}
@@ -600,42 +600,42 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->smtp_rcpt_to = $1 ? -1 : 1;
-	match->smtp_rcpt_to_table = t->t_name;
+	match->flag_smtp_rcpt_to = $1 ? -1 : 1;
+	match->table_smtp_rcpt_to = t->t_name;
 }
 
 | negation FROM SOCKET {
-	if (match->from) {
+	if (match->flag_from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
-	match->from = $1 ? -1 : 1;
-	match->from_socket = 1;
+	match->flag_from = $1 ? -1 : 1;
+	match->flag_from_socket = 1;
 }
 | negation FROM LOCAL {
 	struct table	*t = table_find("<localhost>", NULL);
 
-	if (match->from) {
+	if (match->flag_from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
-	match->from = $1 ? -1 : 1;
-	match->from_table = t->t_name;
+	match->flag_from = $1 ? -1 : 1;
+	match->table_from = t->t_name;
 }
 | negation FROM ANY {
 	struct table	*t = table_find("<anyhost>", NULL);
 
-	if (match->from) {
+	if (match->flag_from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
-	match->from = $1 ? -1 : 1;
-	match->from_table = t->t_name;
+	match->flag_from = $1 ? -1 : 1;
+	match->table_from = t->t_name;
 }
 | negation FROM SRC tables {
 	struct table   *t = $4;
 
-	if (match->from) {
+	if (match->flag_from) {
 		yyerror("from already specified for this rule");
 		YYERROR;
 	}
@@ -646,34 +646,34 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->from = $1 ? -1 : 1;
-	match->from_table = t->t_name;
+	match->flag_from = $1 ? -1 : 1;
+	match->table_from = t->t_name;
 }
 
 | negation FOR LOCAL {
 	struct table   *t = table_find("<localnames>", NULL);
 
-	if (match->to) {
+	if (match->flag_for) {
 		yyerror("for already specified for this rule");
 		YYERROR;
 	}
-	match->to = $1 ? -1 : 1;
-	match->to_table = t->t_name;
+	match->flag_for = $1 ? -1 : 1;
+	match->table_for = t->t_name;
 }
 | negation FOR ANY {
 	struct table   *t = table_find("<anydestination>", NULL);
 
-	if (match->to) {
+	if (match->flag_for) {
 		yyerror("for already specified for this rule");
 		YYERROR;
 	}
-	match->to = $1 ? -1 : 1;
-	match->to_table = t->t_name;
+	match->flag_for = $1 ? -1 : 1;
+	match->table_for = t->t_name;
 }
 | negation FOR DOMAIN tables {
 	struct table   *t = $4;
 
-	if (match->to) {
+	if (match->flag_for) {
 		yyerror("for already specified for this rule");
 		YYERROR;
 	}
@@ -684,8 +684,8 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	match->to = $1 ? -1 : 1;
-	match->to_table = t->t_name;
+	match->flag_for = $1 ? -1 : 1;
+	match->table_for = t->t_name;
 }
 ;
 

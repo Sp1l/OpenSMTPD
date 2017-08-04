@@ -178,15 +178,15 @@ static int
 ruleset_match_tag(struct match *m, const struct envelope *evp)
 {
 	int		ret;
-	struct table	*table = table_find(m->tag_table, NULL);
+	struct table	*table = table_find(m->table_tag, NULL);
 
-	if (!m->tag)
+	if (!m->flag_tag)
 		return 1;
 	
 	if ((ret = ruleset_match_table_lookup(table, evp->tag, K_STRING)) < 0)
 		return ret;
 
-	return m->tag < 0 ? !ret : ret;
+	return m->flag_tag < 0 ? !ret : ret;
 }
 
 static int
@@ -194,12 +194,12 @@ ruleset_match_from(struct match *m, const struct envelope *evp)
 {
 	int		ret;
 	const char	*key;
-	struct table	*table = table_find(m->from_table, NULL);
+	struct table	*table = table_find(m->table_from, NULL);
 
-	if (!m->from)
+	if (!m->flag_from)
 		return 1;
 
-	if (m->from_socket) {
+	if (m->flag_from_socket) {
 		/* XXX - socket needs to be distinguished from "local" */
 		return -1;
 	}
@@ -213,44 +213,44 @@ ruleset_match_from(struct match *m, const struct envelope *evp)
 	if ((ret = ruleset_match_table_lookup(table, key, K_NETADDR)) < 0)
 		return -1;
 
-	return m->from < 0 ? !ret : ret;
+	return m->flag_from < 0 ? !ret : ret;
 }
 
 static int
 ruleset_match_to(struct match *m, const struct envelope *evp)
 {
 	int		ret;
-	struct table	*table = table_find(m->to_table, NULL);
+	struct table	*table = table_find(m->table_for, NULL);
 
-	if (!m->to)
+	if (!m->flag_for)
 		return 1;
 
 	if ((ret = ruleset_match_table_lookup(table, evp->dest.domain,
 		    K_DOMAIN)) < 0)
 		return -1;
 
-	return m->to < 0 ? !ret : ret;
+	return m->flag_for < 0 ? !ret : ret;
 }
 
 static int
 ruleset_match_smtp_helo(struct match *m, const struct envelope *evp)
 {
 	int		ret;
-	struct table	*table = table_find(m->smtp_helo_table, NULL);
+	struct table	*table = table_find(m->table_smtp_helo, NULL);
 
-	if (!m->smtp_helo)
+	if (!m->flag_smtp_helo)
 		return 1;
 
 	if ((ret = ruleset_match_table_lookup(table, evp->helo, K_DOMAIN)) < 0)
 		return -1;
 
-	return m->smtp_helo < 0 ? !ret : ret;
+	return m->flag_smtp_helo < 0 ? !ret : ret;
 }
 
 static int
 ruleset_match_smtp_starttls(struct match *m, const struct envelope *evp)
 {
-	if (!m->smtp_starttls)
+	if (!m->flag_smtp_starttls)
 		return 1;
 
 	/* XXX - not until TLS flag is added to envelope */
@@ -262,12 +262,12 @@ ruleset_match_smtp_auth(struct match *m, const struct envelope *evp)
 {
 	int	ret;
 
-	if (!m->smtp_auth)
+	if (!m->flag_smtp_auth)
 		return 1;
 
 	if (!(evp->flags & EF_AUTHENTICATED))
 		ret = 0;
-	else if (m->smtp_auth_table) {
+	else if (m->table_smtp_auth) {
 		/* XXX - not until smtp_session->username is added to envelope */
 		/*
 		 * table = table_find(m->from_table, NULL);
@@ -280,7 +280,7 @@ ruleset_match_smtp_auth(struct match *m, const struct envelope *evp)
 	else
 		ret = 1;
 
-	return m->smtp_auth < 0 ? !ret : ret;
+	return m->flag_smtp_auth < 0 ? !ret : ret;
 }
 
 static int
@@ -288,9 +288,9 @@ ruleset_match_smtp_mail_from(struct match *m, const struct envelope *evp)
 {
 	int		ret;
 	const char	*key;
-	struct table	*table = table_find(m->smtp_mail_from_table, NULL);
+	struct table	*table = table_find(m->table_smtp_mail_from, NULL);
 
-	if (!m->smtp_mail_from)
+	if (!m->flag_smtp_mail_from)
 		return 1;
 
 	if ((key = mailaddr_to_text(&evp->sender)) == NULL)
@@ -298,7 +298,7 @@ ruleset_match_smtp_mail_from(struct match *m, const struct envelope *evp)
 	if ((ret = ruleset_match_table_lookup(table, key, K_MAILADDR)) < 0)
 		return -1;
 
-	return m->smtp_mail_from < 0 ? !ret : ret;
+	return m->flag_smtp_mail_from < 0 ? !ret : ret;
 }
 
 static int
@@ -306,9 +306,9 @@ ruleset_match_smtp_rcpt_to(struct match *m, const struct envelope *evp)
 {
 	int		ret;
 	const char	*key;
-	struct table	*table = table_find(m->smtp_rcpt_to_table, NULL);
+	struct table	*table = table_find(m->table_smtp_rcpt_to, NULL);
 
-	if (!m->smtp_rcpt_to)
+	if (!m->flag_smtp_rcpt_to)
 		return 1;
 
 	if ((key = mailaddr_to_text(&evp->dest)) == NULL)
@@ -316,14 +316,13 @@ ruleset_match_smtp_rcpt_to(struct match *m, const struct envelope *evp)
 	if ((ret = ruleset_match_table_lookup(table, key, K_MAILADDR)) < 0)
 		return -1;
 
-	return m->smtp_rcpt_to < 0 ? !ret : ret;
+	return m->flag_smtp_rcpt_to < 0 ? !ret : ret;
 }
 
 struct match *
 ruleset_match_new(const struct envelope *evp)
 {
 	struct match	*m;
-	int		ret;
 	int		i = 0;
 
 #define	MATCH_EVAL(x)				\
