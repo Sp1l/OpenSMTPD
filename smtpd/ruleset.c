@@ -178,11 +178,12 @@ static int
 ruleset_match_tag(struct match *m, const struct envelope *evp)
 {
 	int		ret;
-	struct table	*table = table_find(m->table_tag, NULL);
+	struct table	*table;
 
 	if (!m->flag_tag)
 		return 1;
-	
+
+	table = table_find(m->table_tag, NULL);
 	if ((ret = ruleset_match_table_lookup(table, evp->tag, K_STRING)) < 0)
 		return ret;
 
@@ -194,7 +195,7 @@ ruleset_match_from(struct match *m, const struct envelope *evp)
 {
 	int		ret;
 	const char	*key;
-	struct table	*table = table_find(m->table_from, NULL);
+	struct table	*table;
 
 	if (!m->flag_from)
 		return 1;
@@ -210,6 +211,7 @@ ruleset_match_from(struct match *m, const struct envelope *evp)
 	else
 		key = ss_to_text(&evp->ss);
 
+	table = table_find(m->table_from, NULL);
 	if ((ret = ruleset_match_table_lookup(table, key, K_NETADDR)) < 0)
 		return -1;
 
@@ -220,11 +222,12 @@ static int
 ruleset_match_to(struct match *m, const struct envelope *evp)
 {
 	int		ret;
-	struct table	*table = table_find(m->table_for, NULL);
+	struct table	*table;
 
 	if (!m->flag_for)
 		return 1;
 
+	table = table_find(m->table_for, NULL);
 	if ((ret = ruleset_match_table_lookup(table, evp->dest.domain,
 		    K_DOMAIN)) < 0)
 		return -1;
@@ -236,11 +239,12 @@ static int
 ruleset_match_smtp_helo(struct match *m, const struct envelope *evp)
 {
 	int		ret;
-	struct table	*table = table_find(m->table_smtp_helo, NULL);
+	struct table	*table;
 
 	if (!m->flag_smtp_helo)
 		return 1;
 
+	table = table_find(m->table_smtp_helo, NULL);
 	if ((ret = ruleset_match_table_lookup(table, evp->helo, K_DOMAIN)) < 0)
 		return -1;
 
@@ -288,13 +292,15 @@ ruleset_match_smtp_mail_from(struct match *m, const struct envelope *evp)
 {
 	int		ret;
 	const char	*key;
-	struct table	*table = table_find(m->table_smtp_mail_from, NULL);
+	struct table	*table;
 
 	if (!m->flag_smtp_mail_from)
 		return 1;
 
 	if ((key = mailaddr_to_text(&evp->sender)) == NULL)
 		return -1;
+
+	table = table_find(m->table_smtp_mail_from, NULL);
 	if ((ret = ruleset_match_table_lookup(table, key, K_MAILADDR)) < 0)
 		return -1;
 
@@ -306,13 +312,15 @@ ruleset_match_smtp_rcpt_to(struct match *m, const struct envelope *evp)
 {
 	int		ret;
 	const char	*key;
-	struct table	*table = table_find(m->table_smtp_rcpt_to, NULL);
+	struct table	*table;
 
 	if (!m->flag_smtp_rcpt_to)
 		return 1;
 
 	if ((key = mailaddr_to_text(&evp->dest)) == NULL)
 		return -1;
+
+	table = table_find(m->table_smtp_rcpt_to, NULL);
 	if ((ret = ruleset_match_table_lookup(table, key, K_MAILADDR)) < 0)
 		return -1;
 
