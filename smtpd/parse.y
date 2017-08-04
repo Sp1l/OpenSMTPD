@@ -177,9 +177,9 @@ typedef struct {
 %token  RELAY BACKUP VIA DELIVER TO LMTP MAILDIR MBOX RCPT_TO HOSTNAME HOSTNAMES
 %token	ACCEPT REJECT INCLUDE ERROR MDA FROM FOR SOURCE MTA PKI SCHEDULER
 %token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
-%token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARDONLY RECIPIENT
+%token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARD_ONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
-%token	DISPATCH USER SMARTHOST HELO HELOSOURCE MAIL_FROM EXPIRY MATCH STARTTLS SRC
+%token	DISPATCH USER SMARTHOST HELO HELOSOURCE MAIL_FROM EXPIRY MATCH STARTTLS SRC EXPAND_ONLY
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.table>	table
@@ -248,6 +248,16 @@ dispatcher_mda_option:
 USER STRING {
 	if (strcmp(dispatcher->agent.mda.argv0, "mail.local") == 0) {
 		yyerror("user may not be specified for mbox");
+		YYERROR;
+	}
+
+	if (dispatcher->agent.mda.forward_only) {
+		yyerror("user may not be specified for forward-only");
+		YYERROR;
+	}
+
+	if (dispatcher->agent.mda.expand_only) {
+		yyerror("user may not be specified for expand-only");
 		YYERROR;
 	}
 
@@ -337,6 +347,13 @@ MBOX {
 | MDA STRING {
 	dispatcher->agent.mda.argv0 = xstrdup("mail.mda", "dispatcher_mda");
 } dispatcher_mda_options
+| FORWARD_ONLY {
+	dispatcher->agent.mda.forward_only = 1;
+} dispatcher_mda_options
+| EXPAND_ONLY {
+	dispatcher->agent.mda.expand_only = 1;
+} dispatcher_mda_options
+
 ;
 
 dispatcher_mta_option:
@@ -1791,7 +1808,7 @@ recipient      	: RECIPIENT negation tables			{
 		}
 		;
 
-forwardonly	: FORWARDONLY {
+forwardonly	: FORWARD_ONLY {
 			if (rule->r_forwardonly) {
 				yyerror("forward-only specified multiple times");
 				YYERROR;
@@ -1945,11 +1962,12 @@ lookup(char *s)
 		{ "dispatch",		DISPATCH },
 		{ "domain",		DOMAIN },
 		{ "encryption",		ENCRYPTION },
+		{ "expand-only",      	EXPAND_ONLY },
 		{ "expire",		EXPIRE },
 		{ "expiry",		EXPIRY },
 		{ "filter",		FILTER },
 		{ "for",		FOR },
-		{ "forward-only",      	FORWARDONLY },
+		{ "forward-only",      	FORWARD_ONLY },
 		{ "from",		FROM },
 		{ "helo",		HELO },
 		{ "helo-source",       	HELOSOURCE },

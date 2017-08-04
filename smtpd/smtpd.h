@@ -1125,6 +1125,9 @@ enum dispatcher_type {
 };
 
 struct dispatcher_mda {
+	uint8_t	expand_only;
+	uint8_t	forward_only;
+
 	char	*argv0;
 
 	char	*virtual;
@@ -1151,21 +1154,11 @@ struct dispatcher_mta {
 	uint8_t	backup;
 };
 
-struct dispatcher_none {
-	uint8_t	no_fallback;
-	uint8_t	forward_only;
-
-	char	*virtual;
-	char	*aliases;
-	char	*userbase;
-};
-
 struct dispatcher {
 	enum dispatcher_type		type;
 	union dispatcher_agent {
 		struct dispatcher_mda  	mda;
 		struct dispatcher_mta  	mta;
-		struct dispatcher_none	none;
 	} agent;
 
 	time_t	expiry;
