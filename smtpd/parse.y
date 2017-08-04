@@ -271,12 +271,12 @@ USER STRING {
 | ALIAS tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mda.aliases) {
-		yyerror("aliases mapping already specified for this dispatcher");
+	if (dispatcher->agent.mda.table_alias) {
+		yyerror("alias mapping already specified for this dispatcher");
 		YYERROR;
 	}
 
-	if (dispatcher->agent.mda.virtual) {
+	if (dispatcher->agent.mda.table_virtual) {
 		yyerror("virtual mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -287,18 +287,18 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.aliases = t->t_name;
+	dispatcher->agent.mda.table_alias = t->t_name;
 }
 | VIRTUAL tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mda.virtual) {
+	if (dispatcher->agent.mda.table_virtual) {
 		yyerror("virtual mapping already specified for this dispatcher");
 		YYERROR;
 	}
 	
-	if (dispatcher->agent.mda.aliases) {
-		yyerror("aliases mapping already specified for this dispatcher");
+	if (dispatcher->agent.mda.table_alias) {
+		yyerror("alias mapping already specified for this dispatcher");
 		YYERROR;
 	}
 
@@ -308,12 +308,12 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.virtual = t->t_name;
+	dispatcher->agent.mda.table_virtual = t->t_name;
 }
 | USERBASE tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mda.userbase) {
+	if (dispatcher->agent.mda.table_userbase) {
 		yyerror("userbase mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -324,7 +324,7 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.userbase = t->t_name;
+	dispatcher->agent.mda.table_userbase = t->t_name;
 }
 ;
 
@@ -515,6 +515,12 @@ DISPATCH STRING {
 	}
 	dispatcher = xcalloc(1, sizeof *dispatcher, "dispatcher");
 } dispatcher_type dispatcher_options {
+	if (! dispatcher->expiry)
+		dispatcher->expiry = conf->sc_qexpire;
+	if (dispatcher->type == DISPATCHER_MDA) {
+		if (dispatcher->agent.mda.table_userbase == NULL)
+			dispatcher->agent.mda.table_userbase = "<getpwnam>";
+	}
 	dict_set(conf->sc_dispatchers, $2, dispatcher);
 	dispatcher = NULL;
 }

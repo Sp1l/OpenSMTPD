@@ -1130,9 +1130,9 @@ struct dispatcher_mda {
 
 	char	*argv0;
 
-	char	*virtual;
-	char	*aliases;
-	char	*userbase;
+	char	*table_alias;
+	char	*table_virtual;
+	char	*table_userbase;
 
 	char	*user;
 };
