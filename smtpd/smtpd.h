@@ -1121,6 +1121,7 @@ struct msg_walkinfo {
 enum dispatcher_type {
 	DISPATCHER_MDA,
 	DISPATCHER_MTA,
+	DISPATCHER_NONE,
 };
 
 struct dispatcher_mda {
@@ -1150,11 +1151,21 @@ struct dispatcher_mta {
 	uint8_t	backup;
 };
 
+struct dispatcher_none {
+	uint8_t	no_fallback;
+	uint8_t	forward_only;
+
+	char	*virtual;
+	char	*aliases;
+	char	*userbase;
+};
+
 struct dispatcher {
 	enum dispatcher_type		type;
 	union dispatcher_agent {
-		struct dispatcher_mda	mda;
-		struct dispatcher_mta	mta;
+		struct dispatcher_mda  	mda;
+		struct dispatcher_mta  	mta;
+		struct dispatcher_none	none;
 	} agent;
 
 	time_t	expiry;
