@@ -711,15 +711,23 @@ match_option match_options
 | /* empty */
 ;
 
+match_dispatcher:
+STRING {
+	if (dict_get(conf->sc_dispatchers, $1) == NULL) {
+		yyerror("no such dispatcher: %s", $1);
+		YYERROR;
+	}
+	match->dispatcher = $1;
+}
+| REJECT {
+	match->reject = 1;
+}
+;
+
 match:
 MATCH {
 	match = xcalloc(1, sizeof *match, "match");
-} match_options ARROW STRING {
-	if (dict_get(conf->sc_dispatchers, $5) == NULL) {
-		yyerror("no such dispatcher: %s", $5);
-		YYERROR;
-	}
-	match->dispatcher = $5;
+} match_options ARROW match_dispatcher {
 	TAILQ_INSERT_TAIL(conf->sc_matches, match, entry);
 	match = NULL;
 }

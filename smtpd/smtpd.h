@@ -1166,7 +1166,9 @@ struct dispatcher {
 
 struct match {
 	TAILQ_ENTRY(match)	entry;
-	
+
+	uint8_t	reject;
+
 	int8_t	flag_tag;
 	int8_t	flag_from;
 	int8_t	flag_for;
