@@ -179,7 +179,7 @@ ruleset_match_tag(struct match *m, const struct envelope *evp)
 {
 	struct table	*table = table_find(m->tag_table, NULL);
 
-	return ruleset_match_table_lookup(table, evp->tag, K_DOMAIN);
+	return ruleset_match_table_lookup(table, evp->tag, K_STRING);
 }
 
 static int
@@ -213,7 +213,7 @@ static int
 ruleset_match_smtp_helo(struct match *m, const struct envelope *evp)
 {
 	struct table	*table = table_find(m->smtp_helo_table, NULL);
-	
+
 	return ruleset_match_table_lookup(table, evp->helo, K_DOMAIN);
 }
 
@@ -229,7 +229,7 @@ ruleset_match_smtp_auth(struct match *m, const struct envelope *evp)
 {
 	if (!(evp->flags & EF_AUTHENTICATED))
 		return 0;
-	
+
 	if (m->smtp_auth_table) {
 		/* XXX - not until smtp_session->username is added to envelope */
 		/*
@@ -248,7 +248,7 @@ ruleset_match_smtp_mail_from(struct match *m, const struct envelope *evp)
 {
 	const char	*key;
 	struct table	*table = table_find(m->smtp_mail_from_table, NULL);
-	
+
 	if ((key = mailaddr_to_text(&evp->sender)) == NULL)
 		return -1;
 	return ruleset_match_table_lookup(table, key, K_MAILADDR);
@@ -259,7 +259,7 @@ ruleset_match_smtp_rcpt_to(struct match *m, const struct envelope *evp)
 {
 	const char	*key;
 	struct table	*table = table_find(m->smtp_rcpt_to_table, NULL);
-	
+
 	if ((key = mailaddr_to_text(&evp->dest)) == NULL)
 		return -1;
 	return ruleset_match_table_lookup(table, key, K_MAILADDR);
@@ -274,7 +274,7 @@ ruleset_match_new(const struct envelope *evp)
 	struct match	*m;
 	int		ret;
 	int		i = 0;
-	
+
 	TAILQ_FOREACH(m, env->sc_matches, entry) {
 		++i;
 		if (m->tag) {
@@ -336,7 +336,7 @@ tempfail:
 	errno = EAGAIN;
 	log_trace(TRACE_RULES, "temporary failure in processing of a rule");
 	return (NULL);
-	
+
 matched:
 	log_trace(TRACE_RULES, "rule #%d matched: %s", i, match_to_text(m));
 	return m;

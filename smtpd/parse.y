@@ -512,7 +512,7 @@ negation TAG tables {
 		YYERROR;
 	}
 
-	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_DOMAIN)) {
+	if (!table_check_use(t, T_DYNAMIC|T_LIST, K_STRING)) {
 		yyerror("table \"%s\" may not be used for tag lookups",
 		    t->t_name);
 		YYERROR;
