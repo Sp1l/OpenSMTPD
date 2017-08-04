@@ -179,7 +179,7 @@ typedef struct {
 %token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
 %token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARDONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
-%token	DISPATCHER USER SMARTHOST HELO HELOSOURCE MAIL_FROM EXPIRY MATCH STARTTLS SRC
+%token	DISPATCH USER SMARTHOST HELO HELOSOURCE MAIL_FROM EXPIRY MATCH STARTTLS SRC
 %token	<v.string>	STRING
 %token  <v.number>	NUMBER
 %type	<v.table>	table
@@ -491,7 +491,7 @@ dispatcher_option dispatcher_options
 ;
 
 dispatcher:
-DISPATCHER STRING {
+DISPATCH STRING {
 	if (dict_get(conf->sc_dispatchers, $2)) {
 		yyerror("dispatcher already declared with that name: %s", $2);
 		YYERROR;
@@ -1942,7 +1942,7 @@ lookup(char *s)
 		{ "compression",	COMPRESSION },
 		{ "deliver",		DELIVER },
 		{ "dhe",		DHE },
-		{ "dispatcher",		DISPATCHER },
+		{ "dispatch",		DISPATCH },
 		{ "domain",		DOMAIN },
 		{ "encryption",		ENCRYPTION },
 		{ "expire",		EXPIRE },
