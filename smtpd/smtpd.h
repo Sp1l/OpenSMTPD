@@ -510,6 +510,8 @@ struct maddrmap {
 struct envelope {
 	TAILQ_ENTRY(envelope)		entry;
 
+	char				dispatcher[HOST_NAME_MAX+1];
+
 	char				tag[SMTPD_TAG_SIZE];
 
 	uint32_t			version;

@@ -187,6 +187,7 @@ envelope_dump_buffer(const struct envelope *ep, char *dest, size_t len)
 	char	*p = dest;
 
 	envelope_ascii_dump(ep, &dest, &len, "version");
+	envelope_ascii_dump(ep, &dest, &len, "dispatcher");
 	envelope_ascii_dump(ep, &dest, &len, "tag");
 	envelope_ascii_dump(ep, &dest, &len, "type");
 	envelope_ascii_dump(ep, &dest, &len, "smtpname");
@@ -438,6 +439,10 @@ ascii_load_dsn_ret(enum dsn_ret *ret, char *buf)
 static int
 ascii_load_field(const char *field, struct envelope *ep, char *buf)
 {
+	if (strcasecmp("dispatcher", field) == 0)
+		return ascii_load_string(ep->dispatcher, buf,
+		    sizeof ep->dispatcher);
+
 	if (strcasecmp("bounce-delay", field) == 0)
 		return ascii_load_time(&ep->agent.bounce.delay, buf);
 
@@ -778,6 +783,9 @@ static int
 ascii_dump_field(const char *field, const struct envelope *ep,
     char *buf, size_t len)
 {
+	if (strcasecmp(field, "dispatcher") == 0)
+		return ascii_dump_string(ep->dispatcher, buf, len);
+
 	if (strcasecmp(field, "bounce-delay") == 0) {
 		if (ep->agent.bounce.type != B_WARNING)
 			return (1);
