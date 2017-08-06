@@ -337,22 +337,22 @@ dispatcher_local:
 MBOX {
 	dispatcher->u.local.argv0 = xstrdup("mail.local", "dispatcher_mda");
 	dispatcher->u.local.user = xstrdup("root", "dispatcher_mda");
-} dispatcher_mda_options
+} dispatcher_local_options
 | MAILDIR {
 	dispatcher->u.local.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
-} dispatcher_mda_options
+} dispatcher_local_options
 | MAILDIR STRING {
 	dispatcher->u.local.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
-} dispatcher_mda_options
+} dispatcher_local_options
 | MDA STRING {
 	dispatcher->u.local.argv0 = xstrdup("mail.mda", "dispatcher_mda");
-} dispatcher_mda_options
+} dispatcher_local_options
 | FORWARD_ONLY {
 	dispatcher->u.local.forward_only = 1;
-} dispatcher_mda_options
+} dispatcher_local_options
 | EXPAND_ONLY {
 	dispatcher->u.local.expand_only = 1;
-} dispatcher_mda_options
+} dispatcher_local_options
 
 ;
 
