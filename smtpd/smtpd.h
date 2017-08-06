@@ -1121,12 +1121,11 @@ struct msg_walkinfo {
 
 
 enum dispatcher_type {
-	DISPATCHER_MDA,
-	DISPATCHER_MTA,
-	DISPATCHER_NONE,
+	DISPATCHER_LOCAL,
+	DISPATCHER_REMOTE,
 };
 
-struct dispatcher_mda {
+struct dispatcher_local {
 	uint8_t	expand_only;
 	uint8_t	forward_only;
 
@@ -1139,7 +1138,7 @@ struct dispatcher_mda {
 	char	*user;
 };
 
-struct dispatcher_mta {
+struct dispatcher_remote {
 	char	*helo;
 	char	*helo_source;
 
@@ -1157,11 +1156,11 @@ struct dispatcher_mta {
 };
 
 struct dispatcher {
-	enum dispatcher_type		type;
+	enum dispatcher_type			type;
 	union dispatcher_agent {
-		struct dispatcher_mda  	mda;
-		struct dispatcher_mta  	mta;
-	} agent;
+		struct dispatcher_local		local;
+		struct dispatcher_remote  	remote;
+	} u;
 
 	time_t	expiry;
 };

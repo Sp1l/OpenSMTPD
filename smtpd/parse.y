@@ -244,39 +244,39 @@ nl		: '\n' optnl
 		;
 
 
-dispatcher_mda_option:
+dispatcher_local_option:
 USER STRING {
-	if (strcmp(dispatcher->agent.mda.argv0, "mail.local") == 0) {
+	if (strcmp(dispatcher->u.local.argv0, "mail.local") == 0) {
 		yyerror("user may not be specified for mbox");
 		YYERROR;
 	}
 
-	if (dispatcher->agent.mda.forward_only) {
+	if (dispatcher->u.local.forward_only) {
 		yyerror("user may not be specified for forward-only");
 		YYERROR;
 	}
 
-	if (dispatcher->agent.mda.expand_only) {
+	if (dispatcher->u.local.expand_only) {
 		yyerror("user may not be specified for expand-only");
 		YYERROR;
 	}
 
-	if (dispatcher->agent.mda.user) {
+	if (dispatcher->u.local.user) {
 		yyerror("user already specified for this dispatcher");
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.user = $2;
+	dispatcher->u.local.user = $2;
 }
 | ALIAS tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mda.table_alias) {
+	if (dispatcher->u.local.table_alias) {
 		yyerror("alias mapping already specified for this dispatcher");
 		YYERROR;
 	}
 
-	if (dispatcher->agent.mda.table_virtual) {
+	if (dispatcher->u.local.table_virtual) {
 		yyerror("virtual mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -287,17 +287,17 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.table_alias = t->t_name;
+	dispatcher->u.local.table_alias = t->t_name;
 }
 | VIRTUAL tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mda.table_virtual) {
+	if (dispatcher->u.local.table_virtual) {
 		yyerror("virtual mapping already specified for this dispatcher");
 		YYERROR;
 	}
 	
-	if (dispatcher->agent.mda.table_alias) {
+	if (dispatcher->u.local.table_alias) {
 		yyerror("alias mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -308,12 +308,12 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.table_virtual = t->t_name;
+	dispatcher->u.local.table_virtual = t->t_name;
 }
 | USERBASE tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mda.table_userbase) {
+	if (dispatcher->u.local.table_userbase) {
 		yyerror("userbase mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -324,51 +324,51 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mda.table_userbase = t->t_name;
+	dispatcher->u.local.table_userbase = t->t_name;
 }
 ;
 
-dispatcher_mda_options:
-dispatcher_mda_option dispatcher_mda_options
+dispatcher_local_options:
+dispatcher_local_option dispatcher_local_options
 | /* empty */
 ;
 
-dispatcher_mda:
+dispatcher_local:
 MBOX {
-	dispatcher->agent.mda.argv0 = xstrdup("mail.local", "dispatcher_mda");
-	dispatcher->agent.mda.user = xstrdup("root", "dispatcher_mda");
+	dispatcher->u.local.argv0 = xstrdup("mail.local", "dispatcher_mda");
+	dispatcher->u.local.user = xstrdup("root", "dispatcher_mda");
 } dispatcher_mda_options
 | MAILDIR {
-	dispatcher->agent.mda.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
+	dispatcher->u.local.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
 } dispatcher_mda_options
 | MAILDIR STRING {
-	dispatcher->agent.mda.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
+	dispatcher->u.local.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
 } dispatcher_mda_options
 | MDA STRING {
-	dispatcher->agent.mda.argv0 = xstrdup("mail.mda", "dispatcher_mda");
+	dispatcher->u.local.argv0 = xstrdup("mail.mda", "dispatcher_mda");
 } dispatcher_mda_options
 | FORWARD_ONLY {
-	dispatcher->agent.mda.forward_only = 1;
+	dispatcher->u.local.forward_only = 1;
 } dispatcher_mda_options
 | EXPAND_ONLY {
-	dispatcher->agent.mda.expand_only = 1;
+	dispatcher->u.local.expand_only = 1;
 } dispatcher_mda_options
 
 ;
 
-dispatcher_mta_option:
+dispatcher_remote_option:
 HELO STRING {
-	if (dispatcher->agent.mta.helo) {
+	if (dispatcher->u.remote.helo) {
 		yyerror("helo already specified for this dispatcher");
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.helo = $2;
+	dispatcher->u.remote.helo = $2;
 }
 | HELOSOURCE tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mta.helo_source) {
+	if (dispatcher->u.remote.helo_source) {
 		yyerror("helo-source mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -378,28 +378,28 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.helo_source = t->t_name;
+	dispatcher->u.remote.helo_source = t->t_name;
 }
 | PKI STRING {
-	if (dispatcher->agent.mta.pki) {
+	if (dispatcher->u.remote.pki) {
 		yyerror("pki already specified for this dispatcher");
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.pki = $2;
+	dispatcher->u.remote.pki = $2;
 }
 | CA STRING {
-	if (dispatcher->agent.mta.ca) {
+	if (dispatcher->u.remote.ca) {
 		yyerror("ca already specified for this dispatcher");
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.ca = $2;
+	dispatcher->u.remote.ca = $2;
 }
 | SOURCE tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mta.source) {
+	if (dispatcher->u.remote.source) {
 		yyerror("source mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -410,28 +410,28 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.source = t->t_name;
+	dispatcher->u.remote.source = t->t_name;
 }
 | MAIL_FROM STRING {
-	if (dispatcher->agent.mta.mail_from) {
+	if (dispatcher->u.remote.mail_from) {
 		yyerror("mail-from already specified for this dispatcher");
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.mail_from = $2;
+	dispatcher->u.remote.mail_from = $2;
 }
 | BACKUP {
-	if (dispatcher->agent.mta.backup) {
+	if (dispatcher->u.remote.backup) {
 		yyerror("backup already specified for this dispatcher");
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.backup = 1;
+	dispatcher->u.remote.backup = 1;
 }
 | SMARTHOST tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mta.smarthost) {
+	if (dispatcher->u.remote.smarthost) {
 		yyerror("smarthost mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -442,17 +442,17 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.smarthost = t->t_name;
+	dispatcher->u.remote.smarthost = t->t_name;
 }
 | AUTH tables {
 	struct table   *t = $2;
 
-	if (dispatcher->agent.mta.smarthost == NULL) {
+	if (dispatcher->u.remote.smarthost == NULL) {
 		yyerror("auth may not be specified without smarthost on a dispatcher");
 		YYERROR;
 	}
 
-	if (dispatcher->agent.mta.auth) {
+	if (dispatcher->u.remote.auth) {
 		yyerror("auth mapping already specified for this dispatcher");
 		YYERROR;
 	}
@@ -463,25 +463,25 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->agent.mta.auth = t->t_name;
+	dispatcher->u.remote.auth = t->t_name;
 }
 ;
 
-dispatcher_mta_options:
-dispatcher_mta_option dispatcher_mta_options
+dispatcher_remote_options:
+dispatcher_remote_option dispatcher_remote_options
 | /* empty */
 ;
 
-dispatcher_mta	:
-RELAY dispatcher_mta_options
+dispatcher_remote :
+RELAY dispatcher_remote_options
 ;
 
 dispatcher_type:
-dispatcher_mda {
-	dispatcher->type = DISPATCHER_MDA;
+dispatcher_local {
+	dispatcher->type = DISPATCHER_LOCAL;
 }
-| dispatcher_mta {
-	dispatcher->type = DISPATCHER_MTA;
+| dispatcher_remote {
+	dispatcher->type = DISPATCHER_REMOTE;
 }
 ;
 
@@ -517,9 +517,9 @@ DISPATCH STRING {
 } dispatcher_type dispatcher_options {
 	if (! dispatcher->expiry)
 		dispatcher->expiry = conf->sc_qexpire;
-	if (dispatcher->type == DISPATCHER_MDA) {
-		if (dispatcher->agent.mda.table_userbase == NULL)
-			dispatcher->agent.mda.table_userbase = "<getpwnam>";
+	if (dispatcher->type == DISPATCHER_LOCAL) {
+		if (dispatcher->u.local.table_userbase == NULL)
+			dispatcher->u.local.table_userbase = "<getpwnam>";
 	}
 	dict_set(conf->sc_dispatchers, $2, dispatcher);
 	dispatcher = NULL;
