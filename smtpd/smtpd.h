@@ -1123,6 +1123,7 @@ struct msg_walkinfo {
 enum dispatcher_type {
 	DISPATCHER_LOCAL,
 	DISPATCHER_REMOTE,
+	DISPATCHER_BOUNCE,
 };
 
 struct dispatcher_local {
@@ -1155,11 +1156,15 @@ struct dispatcher_remote {
 	uint8_t	backup;
 };
 
+struct dispatcher_bounce {
+};
+
 struct dispatcher {
 	enum dispatcher_type			type;
 	union dispatcher_agent {
 		struct dispatcher_local		local;
 		struct dispatcher_remote  	remote;
+		struct dispatcher_bounce  	bounce;
 	} u;
 
 	time_t	expiry;
