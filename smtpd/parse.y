@@ -1881,7 +1881,7 @@ rule		: ACCEPT {
 			rule->r_decision = R_ACCEPT;
 			rule->r_desttype = DEST_DOM;
 			rule->r_qexpire = -1;
-		} decision lookup action accept_params ARROW STRING {
+		} decision lookup action accept_params {
 			if (!rule->r_sources)
 				rule->r_sources = table_find("<localhost>", NULL);
 			if (!rule->r_destination)
@@ -1905,7 +1905,6 @@ rule		: ACCEPT {
 				YYERROR;
 			}
 
-			(void)strlcpy(rule->dispatcher, $8, sizeof (rule->dispatcher));
 			TAILQ_INSERT_TAIL(conf->sc_rules, rule, r_entry);
 			rule = NULL;
 		}

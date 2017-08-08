@@ -44,12 +44,14 @@ aliases_get(struct expand *expand, const char *username)
 	size_t			nbaliases;
 	int			ret;
 	union lookup		lk;
+	struct dispatcher      *dsp;
 	struct table	       *mapping = NULL;
 	struct table	       *userbase = NULL;
 	char		       *pbuf;
 
-	mapping = expand->rule->r_mapping;
-	userbase = expand->rule->r_userbase;
+	dsp = dict_xget(env->sc_dispatchers, expand->match->dispatcher);
+	userbase = table_find(dsp->u.local.table_userbase, NULL);
+	mapping = table_find(dsp->u.local.table_alias, NULL);
 
 	xlowercase(buf, username, sizeof(buf));
 
@@ -102,11 +104,13 @@ aliases_virtual_get(struct expand *expand, const struct mailaddr *maddr)
 	char		       *pbuf;
 	int			nbaliases;
 	int			ret;
+	struct dispatcher      *dsp;
 	struct table	       *mapping = NULL;
 	struct table	       *userbase = NULL;
 
-	mapping = expand->rule->r_mapping;
-	userbase = expand->rule->r_userbase;
+	dsp = dict_xget(env->sc_dispatchers, expand->match->dispatcher);
+	userbase = table_find(dsp->u.local.table_userbase, NULL);
+	mapping = table_find(dsp->u.local.table_virtual, NULL);
 
 	if (!bsnprintf(user, sizeof(user), "%s", maddr->user))
 		return 0;

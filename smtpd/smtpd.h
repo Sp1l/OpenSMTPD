@@ -415,8 +415,6 @@ struct rule {
 	time_t				r_qexpire;
 	uint8_t				r_forwardonly;
 	char				r_delivery_user[LINE_MAX];
-
-	char				dispatcher[LINE_MAX];
 };
 
 struct delivery_mda {
@@ -467,7 +465,7 @@ struct expandnode {
 	enum expand_type	type;
 	int			sameuser;
 	int			alias;
-	struct rule	       *rule;
+	struct match	       *match;
 	struct expandnode      *parent;
 	unsigned int		depth;
 	struct table   	       *mapping;
@@ -488,7 +486,7 @@ struct expand {
 	TAILQ_HEAD(xnodes, expandnode)	*queue;
 	int				 alias;
 	size_t				 nb_nodes;
-	struct rule			*rule;
+	struct match			*match;
 	struct expandnode		*parent;
 };
 

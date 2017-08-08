@@ -83,7 +83,7 @@ expand_insert(struct expand *expand, struct expandnode *node)
 	}
 
 	xn = xmemdup(node, sizeof *xn, "expand_insert");
-	xn->rule = expand->rule;
+	xn->match = expand->match;
 	xn->parent = expand->parent;
 	xn->alias = expand->alias;
 	if (xn->parent)
