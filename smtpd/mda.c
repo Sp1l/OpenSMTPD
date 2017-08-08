@@ -235,6 +235,15 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 				return;
 			}
 
+			if (1 == 1) {
+				log_debug("debug: mda: work in progress");
+				mda_queue_tempfail(e->id, "fdopen failed",
+				    ESC_OTHER_MAIL_SYSTEM_STATUS);
+				mda_log(e, "TempFail", "work in progress");
+				mda_done(s);
+				return;
+			}
+			
 			/* check delivery loop */
 			if (mda_check_loop(s->datafp, e)) {
 				log_debug("debug: mda: loop detected");
@@ -837,41 +846,43 @@ mda_queue_loop(uint64_t evpid)
 static struct mda_user *
 mda_user(const struct envelope *evp)
 {
+	struct dispatcher *dsp;
 	struct mda_user	*u;
 	void		*i;
 
 	i = NULL;
+	dsp = dict_xget(env->sc_dispatchers, evp->dispatcher);
 	while (tree_iter(&users, &i, NULL, (void**)(&u))) {
-		if (!strcmp(evp->agent.mda.username, u->name) &&
-		    !strcmp(evp->agent.mda.usertable, u->usertable))
+		if (!strcmp(evp->dest.user, u->name) &&
+		    !strcmp(dsp->u.local.table_userbase, u->usertable))
 			return (u);
 	}
 
 	u = xcalloc(1, sizeof *u, "mda_user");
 	u->id = generate_uid();
 	TAILQ_INIT(&u->envelopes);
-	(void)strlcpy(u->name, evp->agent.mda.username, sizeof(u->name));
-	(void)strlcpy(u->usertable, evp->agent.mda.usertable,
+	(void)strlcpy(u->name, evp->dest.user, sizeof(u->name));
+	(void)strlcpy(u->usertable, dsp->u.local.table_userbase,
 	    sizeof(u->usertable));
 
 	tree_xset(&users, u->id, u);
 
 	m_create(p_lka, IMSG_MDA_LOOKUP_USERINFO, 0, 0, -1);
 	m_add_id(p_lka, u->id);
-	m_add_string(p_lka, evp->agent.mda.usertable);
-	if (evp->agent.mda.delivery_user[0])
-		m_add_string(p_lka, evp->agent.mda.delivery_user);
+	m_add_string(p_lka, dsp->u.local.table_userbase);
+	if (dsp->u.local.user)
+		m_add_string(p_lka, dsp->u.local.user);
 	else
-		m_add_string(p_lka, evp->agent.mda.username);
+		m_add_string(p_lka, evp->dest.user);
 	m_close(p_lka);
 	u->flags |= USER_WAITINFO;
 
 	stat_increment("mda.user", 1);
 
-	if (evp->agent.mda.delivery_user[0])
+	if (dsp->u.local.user)
 		log_debug("mda: new user %016" PRIx64
 		    " for \"%s\" delivering as \"%s\"",
-		    u->id, mda_user_to_text(u), evp->agent.mda.delivery_user);
+		    u->id, mda_user_to_text(u), dsp->u.local.user);
 	else
 		log_debug("mda: new user %016" PRIx64
 		    " for \"%s\"", u->id, mda_user_to_text(u));
