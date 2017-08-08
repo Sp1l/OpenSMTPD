@@ -652,7 +652,7 @@ queue(void)
 	struct timeval	 tv;
 	struct event	 ev_qload;
 
-	purge_config(PURGE_EVERYTHING);
+	purge_config(PURGE_EVERYTHING & ~PURGE_DISPATCHERS);
 
 	if ((pw = getpwnam(SMTPD_QUEUE_USER)) == NULL)
 		if ((pw = getpwnam(SMTPD_USER)) == NULL)

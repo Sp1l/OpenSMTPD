@@ -415,6 +415,8 @@ struct rule {
 	time_t				r_qexpire;
 	uint8_t				r_forwardonly;
 	char				r_delivery_user[LINE_MAX];
+
+	char				dispatcher[LINE_MAX];
 };
 
 struct delivery_mda {

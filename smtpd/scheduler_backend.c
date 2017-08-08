@@ -52,11 +52,26 @@ scheduler_backend_lookup(const char *name)
 void
 scheduler_info(struct scheduler_info *sched, struct envelope *evp)
 {
+	struct dispatcher *disp;
+
+	disp = dict_xget(env->sc_dispatchers, evp->dispatcher);
+
+	switch (disp->type) {
+	case DISPATCHER_LOCAL:
+		sched->type = D_MDA;
+		break;
+	case DISPATCHER_REMOTE:
+		sched->type = D_MTA;
+		break;
+	case DISPATCHER_BOUNCE:
+		sched->type = D_BOUNCE;
+		break;
+	}
+	sched->expire = disp->expiry ? disp->expiry : env->sc_qexpire;
+
 	sched->evpid = evp->id;
-	sched->type = evp->type;
 	sched->creation = evp->creation;
 	sched->retry = evp->retry;
-	sched->expire = evp->expire;
 	sched->lasttry = evp->lasttry;
 	sched->lastbounce = evp->lastbounce;
 	sched->nexttry	= 0;

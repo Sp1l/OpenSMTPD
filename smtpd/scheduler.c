@@ -433,7 +433,7 @@ scheduler(void)
 		errx(1, "cannot find scheduler backend \"%s\"",
 		    backend_scheduler);
 
-	purge_config(PURGE_EVERYTHING);
+	purge_config(PURGE_EVERYTHING & ~PURGE_DISPATCHERS);
 
 	if ((pw = getpwnam(SMTPD_USER)) == NULL)
 		fatalx("unknown user " SMTPD_USER);

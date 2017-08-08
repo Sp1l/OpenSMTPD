@@ -476,6 +476,7 @@ lka_submit(struct lka_session *lks, struct rule *rule, struct expandnode *xn)
 
 	ep = xmemdup(&lks->envelope, sizeof *ep, "lka_submit");
 	ep->expire = rule->r_qexpire;
+	(void)strlcpy(ep->dispatcher, rule->dispatcher, sizeof ep->dispatcher);
 
 	switch (rule->r_action) {
 	case A_RELAY:
