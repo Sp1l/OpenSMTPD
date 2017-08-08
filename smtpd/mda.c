@@ -52,9 +52,8 @@ struct mda_envelope {
 	char				*sender;
 	char				*dest;
 	char				*rcpt;
-	enum action_type		 method;
 	char				*user;
-	char				*buffer;
+	char				*dispatcher;
 };
 
 #define USER_WAITINFO	0x01
@@ -115,7 +114,6 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 	struct mda_user		*u;
 	struct mda_envelope	*e;
 	struct envelope		 evp;
-	struct userinfo		*userinfo;
 	struct deliver		 deliver;
 	struct msg		 m;
 	const void		*data;
@@ -235,7 +233,7 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 				return;
 			}
 
-			if (1 == 1) {
+			if (1 == 0) {
 				log_debug("debug: mda: work in progress");
 				mda_queue_tempfail(e->id, "fdopen failed",
 				    ESC_OTHER_MAIL_SYSTEM_STATUS);
@@ -253,21 +251,16 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 				return;
 			}
 
+			time(&now);
+
 			n = 0;
-			/* 
-			 * prepend "From " separator ... for 
-			 * A_MDA and A_FILENAME backends only
-			 */
-			if (e->method == A_MDA || e->method == A_FILENAME) {
-				time(&now);
-				if (e->sender[0])
-					n = io_printf(s->io, "From %s %s",
-					    e->sender, ctime(&now));
-				else
-					n = io_printf(s->io,
-					    "From MAILER-DAEMON@%s %s",
-					    env->sc_hostname, ctime(&now));
-			}
+			if (e->sender[0])
+				n = io_printf(s->io, "From %s %s",
+				    e->sender, ctime(&now));
+			else
+				n = io_printf(s->io,
+				    "From MAILER-DAEMON@%s %s",
+				    env->sc_hostname, ctime(&now));
 			if (n != -1) {
 				/* start queueing delivery headers */
 				if (e->sender[0])
@@ -296,113 +289,13 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 			}
 
 			/* request parent to fork a helper process */
-			userinfo = &s->user->userinfo;
 			memset(&deliver, 0, sizeof deliver);
-			switch (e->method) {
-			case A_MDA:
-				deliver.mode = A_MDA;
-				deliver.userinfo = *userinfo;
-				(void)strlcpy(deliver.user, userinfo->username,
-				    sizeof(deliver.user));
-				if (strlcpy(deliver.to, e->buffer,
-					sizeof(deliver.to))
-				    >= sizeof(deliver.to)) {
-					mda_queue_tempfail(e->id,
-					    "mda command too long",
-					    ESC_OTHER_MAIL_SYSTEM_STATUS);
-					mda_log(e, "TempFail",
-					    "mda command too long");
-					mda_done(s);
-					return;
-				}
-				break;
-
-			case A_MBOX:
-				/* 
-				 * MBOX is a special case as we MUST
-				 * deliver as root, just override the uid.
-				 */
-				deliver.mode = A_MBOX;
-				deliver.userinfo = *userinfo;
-				deliver.userinfo.uid = 0;
-				(void)strlcpy(deliver.user, "root",
-				    sizeof(deliver.user));
-				(void)strlcpy(deliver.from, e->sender,
-				    sizeof(deliver.from));
-				(void)strlcpy(deliver.to, userinfo->username,
-				    sizeof(deliver.to));
-				break;
-
-			case A_MAILDIR:
-				deliver.mode = A_MAILDIR;
-				deliver.userinfo = *userinfo;
-				(void)strlcpy(deliver.user, userinfo->username,
-				    sizeof(deliver.user));
-				(void)strlcpy(deliver.dest, e->dest,
-				    sizeof(deliver.dest));
-				if (strlcpy(deliver.to, e->buffer,
-					sizeof(deliver.to))
-				    >= sizeof(deliver.to)) {
-					log_warn("warn: mda: "
-					    "deliver buffer too large");
-					mda_queue_tempfail(e->id,
-					    "Maildir path too long",
-					    ESC_OTHER_MAIL_SYSTEM_STATUS);
-					mda_log(e, "TempFail",
-					    "Maildir path too long");
-					mda_done(s);
-					return;
-				}
-				break;
-
-			case A_FILENAME:
-				deliver.mode = A_FILENAME;
-				deliver.userinfo = *userinfo;
-				(void)strlcpy(deliver.user, userinfo->username,
-				    sizeof deliver.user);
-				if (strlcpy(deliver.to, e->buffer,
-					sizeof(deliver.to))
-				    >= sizeof(deliver.to)) {
-					log_warn("warn: mda: "
-					    "deliver buffer too large");
-					mda_queue_tempfail(e->id,
-					    "filename path too long",
-					    ESC_OTHER_MAIL_SYSTEM_STATUS);
-					mda_log(e, "TempFail",
-					    "filename path too long");
-					mda_done(s);
-					return;
-				}
-				break;
-
-			case A_LMTP:
-				deliver.mode = A_LMTP;
-				deliver.userinfo = *userinfo;
-				(void)strlcpy(deliver.user, e->user,
-				    sizeof(deliver.user));
-				(void)strlcpy(deliver.from, e->sender,
-				    sizeof(deliver.from));
-				(void)strlcpy(deliver.dest, e->dest,
-				    sizeof(deliver.dest));
-				if (strlcpy(deliver.to, e->buffer,
-					sizeof(deliver.to))
-				    >= sizeof(deliver.to)) {
-					log_warn("warn: mda: "
-					    "deliver buffer too large");
-					mda_queue_tempfail(e->id,
-					    "socket path too long",
-					    ESC_OTHER_MAIL_SYSTEM_STATUS);
-					mda_log(e, "TempFail",
-					    "socket path too long");
-					mda_done(s);
-					return;
-				}
-				break;
-
-			default:
-				errx(1, "mda: unknown delivery method: %d",
-				    e->method);
-			}
+			(void)strlcpy(deliver.user, s->user->name, sizeof deliver.user);
+			text_to_mailaddr(&deliver.sender, s->evp->sender);
+			text_to_mailaddr(&deliver.rcpt, s->evp->rcpt);
+			text_to_mailaddr(&deliver.dest, s->evp->dest);
+			(void)strlcpy(deliver.dispatcher, s->evp->dispatcher, sizeof deliver.dispatcher);
+			deliver.userinfo = s->user->userinfo;
 
 			log_debug("debug: mda: querying mda fd "
 			    "for session %016"PRIx64 " evpid %016"PRIx64,
@@ -772,34 +665,19 @@ static void
 mda_log(const struct mda_envelope *evp, const char *prefix, const char *status)
 {
 	char rcpt[LINE_MAX];
-	const char *method;
 
 	rcpt[0] = '\0';
 	if (evp->rcpt)
 		(void)snprintf(rcpt, sizeof rcpt, "rcpt=<%s>, ", evp->rcpt);
 
-	if (evp->method == A_MAILDIR)
-		method = "maildir";
-	else if (evp->method == A_MBOX)
-		method = "mbox";
-	else if (evp->method == A_FILENAME)
-		method = "file";
-	else if (evp->method == A_MDA)
-		method = "mda";
-	else if (evp->method == A_LMTP)
-		method = "lmtp";
-	else
-		method = "???";
-
 	log_info("%016"PRIx64" mda event=delivery evpid=%016" PRIx64 " from=<%s> to=<%s> "
-	    "%suser=%s method=%s delay=%s result=%s stat=%s",
+	    "%suser=%s delay=%s result=%s stat=%s",
 	    (uint64_t)0,
 	    evp->id,
 	    evp->sender ? evp->sender : "",
 	    evp->dest,
 	    rcpt,
 	    evp->user,
-	    method,
 	    duration_to_text(time(NULL) - evp->creation),
 	    prefix,
 	    status);
@@ -935,12 +813,9 @@ mda_envelope(const struct envelope *evp)
 	e->dest = xstrdup(buf, "mda_envelope:dest");
 	(void)snprintf(buf, sizeof buf, "%s@%s", evp->rcpt.user,
 	    evp->rcpt.domain);
-	if (strcmp(buf, e->dest))
-		e->rcpt = xstrdup(buf, "mda_envelope:rcpt");
-	e->method = evp->agent.mda.method;
-	e->buffer = xstrdup(evp->agent.mda.buffer, "mda_envelope:buffer");
-	e->user = xstrdup(evp->agent.mda.username, "mda_envelope:user");
-
+	e->rcpt = xstrdup(buf, "mda_envelope:rcpt");
+	e->user = xstrdup(evp->dest.user, "mda_envelope:user");
+	e->dispatcher = xstrdup(evp->dispatcher, "mda_envelope:user");
 	stat_increment("mda.envelope", 1);
 
 	return (e);
@@ -953,7 +828,6 @@ mda_envelope_free(struct mda_envelope *e)
 	free(e->dest);
 	free(e->rcpt);
 	free(e->user);
-	free(e->buffer);
 	free(e);
 
 	stat_decrement("mda.envelope", 1);

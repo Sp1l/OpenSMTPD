@@ -680,12 +680,13 @@ struct forward_req {
 };
 
 struct deliver {
-	char			to[EXPAND_BUFFER];
-	char			from[SMTPD_MAXMAILADDRSIZE];
-	char			dest[SMTPD_MAXMAILADDRSIZE];
-	char			user[SMTPD_VUSERNAME_SIZE];
-	short			mode;
+	char			dispatcher[EXPAND_BUFFER];
 
+	struct mailaddr		sender;
+	struct mailaddr		rcpt;
+	struct mailaddr		dest;
+
+	char			user[SMTPD_VUSERNAME_SIZE];	
 	struct userinfo		userinfo;
 };
 
@@ -1127,10 +1128,12 @@ enum dispatcher_type {
 };
 
 struct dispatcher_local {
+	uint8_t requires_root;	/* only for MBOX */
+
 	uint8_t	expand_only;
 	uint8_t	forward_only;
 
-	char	*argv0;
+	char	*command;
 
 	char	*table_alias;
 	char	*table_virtual;
@@ -1338,7 +1341,7 @@ void mda_imsg(struct mproc *, struct imsg *);
 
 
 /* mda_variables.c */
-size_t mda_expand_format(char *, size_t, const struct envelope *,
+size_t mda_expand_format(char *, size_t, const struct deliver *,
     const struct userinfo *);
 
 

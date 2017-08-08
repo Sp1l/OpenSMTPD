@@ -1219,25 +1219,16 @@ static void
 forkmda(struct mproc *p, uint64_t id, struct deliver *deliver)
 {
 	char		 ebuf[128], sfn[32];
-	struct delivery_backend	*db;
+	struct dispatcher	*dsp;
 	struct child	*child;
 	pid_t		 pid;
 	int		 allout, pipefd[2];
 
 	log_debug("debug: smtpd: forking mda for session %016"PRIx64
-	    ": \"%s\" as %s", id, deliver->to, deliver->user);
+	    ": %s as %s", id, deliver->user, deliver->userinfo.username);
 
-	db = delivery_backend_lookup(deliver->mode);
-	if (db == NULL) {
-		(void)snprintf(ebuf, sizeof ebuf, "could not find delivery backend");
-		m_create(p_pony, IMSG_MDA_DONE, 0, 0, -1);
-		m_add_id(p_pony, id);
-		m_add_string(p_pony, ebuf);
-		m_close(p_pony);
-		return;
-	}
-
-	if (deliver->userinfo.uid == 0 && !db->allow_root) {
+	dsp = dict_xget(env->sc_dispatchers, deliver->dispatcher);
+	if (deliver->userinfo.uid == 0 && !dsp->u.local.requires_root) {
 		(void)snprintf(ebuf, sizeof ebuf, "not allowed to deliver to: %s",
 		    deliver->user);
 		m_create(p_pony, IMSG_MDA_DONE, 0, 0, -1);
@@ -1295,7 +1286,6 @@ forkmda(struct mproc *p, uint64_t id, struct deliver *deliver)
 		m_close(p);
 		return;
 	}
-
 	if (chdir(deliver->userinfo.directory) < 0 && chdir("/") < 0)
 		err(1, "chdir");
 	if (setgroups(1, &deliver->userinfo.gid) ||
@@ -1320,7 +1310,21 @@ forkmda(struct mproc *p, uint64_t id, struct deliver *deliver)
 	/* avoid hangs by setting 5m timeout */
 	alarm(300);
 
-	db->open(deliver);
+	{
+		char	*environ_new[2];
+		char	buffer[4096];
+
+		(void)strlcpy(buffer, dsp->u.local.command, sizeof buffer);
+		mda_expand_format(buffer, sizeof buffer, deliver, &deliver->userinfo);
+
+		environ_new[0] = "PATH=" _PATH_DEFPATH;
+		environ_new[1] = (char *)NULL;
+		environ = environ_new;
+		execle("/bin/sh", "/bin/sh", "-c", buffer, (char *)NULL,
+		    environ_new);
+		perror("execle");
+		_exit(1);
+	}
 }
 
 static void

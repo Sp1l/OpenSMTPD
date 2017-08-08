@@ -5,5 +5,6 @@
 SUBDIR =	mail.lmtp
 SUBDIR+=	mail.file
 SUBDIR+=	mail.maildir
+SUBDIR+=	mail.mda
 
 .include <bsd.subdir.mk>

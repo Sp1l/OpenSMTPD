@@ -246,8 +246,8 @@ nl		: '\n' optnl
 
 dispatcher_local_option:
 USER STRING {
-	if (strcmp(dispatcher->u.local.argv0, "mail.local") == 0) {
-		yyerror("user may not be specified for mbox");
+	if (dispatcher->u.local.requires_root) {
+		yyerror("user may not be specified for this dispatcher");
 		YYERROR;
 	}
 
@@ -335,17 +335,25 @@ dispatcher_local_option dispatcher_local_options
 
 dispatcher_local:
 MBOX {
-	dispatcher->u.local.argv0 = xstrdup("mail.local", "dispatcher_mda");
+	dispatcher->u.local.requires_root = 1;
 	dispatcher->u.local.user = xstrdup("root", "dispatcher_mda");
+	asprintf(&dispatcher->u.local.command, "/usr/libexec/mail.local %%{user.username}");
 } dispatcher_local_options
 | MAILDIR {
-	dispatcher->u.local.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
+	asprintf(&dispatcher->u.local.command,
+	    "/usr/libexec/mail.maildir -d %%{user.directory}/Maildir");
 } dispatcher_local_options
 | MAILDIR STRING {
-	dispatcher->u.local.argv0 = xstrdup("mail.maildir", "dispatcher_mda");
+	if (strncmp($2, "~/", 2) == 0)
+		asprintf(&dispatcher->u.local.command,
+		    "/usr/libexec/mail.maildir -d %%{user.directory}/%s", $2+2);
+	else
+		asprintf(&dispatcher->u.local.command,
+		    "/usr/libexec/mail.maildir -d %s", $2);
 } dispatcher_local_options
 | MDA STRING {
-	dispatcher->u.local.argv0 = xstrdup("mail.mda", "dispatcher_mda");
+	asprintf(&dispatcher->u.local.command,
+	    "/usr/libexec/mail.mda \"%s\"", $2);
 } dispatcher_local_options
 | FORWARD_ONLY {
 	dispatcher->u.local.forward_only = 1;
