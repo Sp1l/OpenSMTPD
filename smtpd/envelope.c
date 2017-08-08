@@ -198,21 +198,8 @@ envelope_dump_buffer(const struct envelope *ep, char *dest, size_t len)
 
 	switch (ep->type) {
 	case D_MDA:
-		envelope_ascii_dump(ep, &dest, &len, "mda-buffer");
-		envelope_ascii_dump(ep, &dest, &len, "mda-method");
-		envelope_ascii_dump(ep, &dest, &len, "mda-user");
-		envelope_ascii_dump(ep, &dest, &len, "mda-usertable");
-		envelope_ascii_dump(ep, &dest, &len, "mda-delivery-user");
 		break;
 	case D_MTA:
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-auth");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-cert");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-ca");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-flags");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-heloname");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-helotable");
-		envelope_ascii_dump(ep, &dest, &len, "mta-relay-source");
 		break;
 	case D_BOUNCE:
 		envelope_ascii_dump(ep, &dest, &len, "bounce-expire");
