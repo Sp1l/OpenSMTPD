@@ -2509,7 +2509,7 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 		}
 	}
 
-	if (TAILQ_EMPTY(conf->sc_rules)) {
+	if (TAILQ_EMPTY(conf->sc_matches)) {
 		log_warnx("warn: no rules, nothing to do");
 		errors++;
 	}
