@@ -878,13 +878,6 @@ struct auth_backend {
 	int	(*authenticate)(char *, char *);
 };
 
-
-/* delivery_backend */
-struct delivery_backend {
-	int	allow_root;
-	void	(*open)(struct deliver *);
-};
-
 struct scheduler_backend {
 	int	(*init)(const char *);
 
@@ -1218,10 +1211,6 @@ int	crypto_encrypt_file(FILE *, FILE *);
 int	crypto_decrypt_file(FILE *, FILE *);
 size_t	crypto_encrypt_buffer(const char *, size_t, char *, size_t);
 size_t	crypto_decrypt_buffer(const char *, size_t, char *, size_t);
-
-
-/* delivery.c */
-struct delivery_backend *delivery_backend_lookup(enum action_type);
 
 
 /* dns.c */
