@@ -312,24 +312,6 @@ ascii_load_sockaddr(struct sockaddr_storage *ss, char *buf)
 }
 
 static int
-ascii_load_mda_method(enum action_type *dest, char *buf)
-{
-	if (strcasecmp(buf, "mbox") == 0)
-		*dest = A_MBOX;
-	else if (strcasecmp(buf, "maildir") == 0)
-		*dest = A_MAILDIR;
-	else if (strcasecmp(buf, "filename") == 0)
-		*dest = A_FILENAME;
-	else if (strcasecmp(buf, "mda") == 0)
-		*dest = A_MDA;
-	else if (strcasecmp(buf, "lmtp") == 0)
-		*dest = A_LMTP;
-	else
-		return 0;
-	return 1;
-}
-
-static int
 ascii_load_mailaddr(struct mailaddr *dest, char *buf)
 {
 	if (!text_to_mailaddr(dest, buf))
@@ -452,25 +434,6 @@ ascii_load_field(const char *field, struct envelope *ep, char *buf)
 
 	if (strcasecmp("last-try", field) == 0)
 		return ascii_load_time(&ep->lasttry, buf);
-
-	if (strcasecmp("mda-buffer", field) == 0)
-		return ascii_load_string(ep->agent.mda.buffer, buf,
-		    sizeof ep->agent.mda.buffer);
-
-	if (strcasecmp("mda-method", field) == 0)
-		return ascii_load_mda_method(&ep->agent.mda.method, buf);
-
-	if (strcasecmp("mda-user", field) == 0)
-		return ascii_load_string(ep->agent.mda.username, buf,
-		    sizeof ep->agent.mda.username);
-
-	if (strcasecmp("mda-usertable", field) == 0)
-		return ascii_load_string(ep->agent.mda.usertable, buf,
-		    sizeof ep->agent.mda.usertable);
-
-	if (strcasecmp("mda-delivery-user", field) == 0)
-		return ascii_load_string(ep->agent.mda.delivery_user, buf,
-		    sizeof ep->agent.mda.delivery_user);
 
 	if (strcasecmp("mta-relay", field) == 0) {
 		int ret;
@@ -630,33 +593,6 @@ ascii_dump_type(enum delivery_type type, char *dest, size_t len)
 }
 
 static int
-ascii_dump_mda_method(enum action_type type, char *dest, size_t len)
-{
-	char *p = NULL;
-
-	switch (type) {
-	case A_LMTP:
-		p = "lmtp";
-		break;
-	case A_MAILDIR:
-		p = "maildir";
-		break;
-	case A_MBOX:
-		p = "mbox";
-		break;
-	case A_FILENAME:
-		p = "filename";
-		break;
-	case A_MDA:
-		p = "mda";
-		break;
-	default:
-		return 0;
-	}
-	return bsnprintf(dest, len, "%s", p);
-}
-
-static int
 ascii_dump_mailaddr(const struct mailaddr *addr, char *dest, size_t len)
 {
 	return bsnprintf(dest, len, "%s@%s",
@@ -799,21 +735,6 @@ ascii_dump_field(const char *field, const struct envelope *ep,
 
 	if (strcasecmp(field, "last-try") == 0)
 		return ascii_dump_time(ep->lasttry, buf, len);
-
-	if (strcasecmp(field, "mda-buffer") == 0)
-		return ascii_dump_string(ep->agent.mda.buffer, buf, len);
-
-	if (strcasecmp(field, "mda-method") == 0)
-		return ascii_dump_mda_method(ep->agent.mda.method, buf, len);
-
-	if (strcasecmp(field, "mda-user") == 0)
-		return ascii_dump_string(ep->agent.mda.username, buf, len);
-
-	if (strcasecmp(field, "mda-delivery-user") == 0)
-		return ascii_dump_string(ep->agent.mda.delivery_user, buf, len);
-
-	if (strcasecmp(field, "mda-usertable") == 0)
-		return ascii_dump_string(ep->agent.mda.usertable, buf, len);
 
 	if (strcasecmp(field, "mta-relay") == 0) {
 		if (ep->agent.mta.relay.hostname[0])

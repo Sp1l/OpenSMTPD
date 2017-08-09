@@ -375,14 +375,6 @@ enum action_type {
 	A_LMTP
 };
 
-struct delivery_mda {
-	enum action_type	method;
-	char			usertable[SMTPD_TABLENAME_SIZE];
-	char			username[SMTPD_VUSERNAME_SIZE];
-	char			buffer[EXPAND_BUFFER];
-	char			delivery_user[SMTPD_VUSERNAME_SIZE];
-};
-
 struct delivery_mta {
 	struct relayhost	relay;
 };
@@ -488,7 +480,6 @@ struct envelope {
 
 	enum delivery_type		type;
 	union {
-		struct delivery_mda	mda;
 		struct delivery_mta	mta;
 		struct delivery_bounce	bounce;
 	}				agent;
