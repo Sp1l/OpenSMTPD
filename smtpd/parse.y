@@ -353,7 +353,7 @@ MBOX {
 } dispatcher_local_options
 | MDA STRING {
 	asprintf(&dispatcher->u.local.command,
-	    "/usr/libexec/mail.mda \"%s\"", $2);
+	    "/usr/libexec/mail.mda %s", $2);
 } dispatcher_local_options
 | FORWARD_ONLY {
 	dispatcher->u.local.forward_only = 1;
