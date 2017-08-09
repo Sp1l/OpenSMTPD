@@ -364,17 +364,6 @@ enum dest_type {
 	DEST_VDOM
 };
 
-enum action_type {
-	A_NONE,
-	A_RELAY,
-	A_RELAYVIA,
-	A_MAILDIR,
-	A_MBOX,
-	A_FILENAME,
-	A_MDA,
-	A_LMTP
-};
-
 struct delivery_mta {
 	struct relayhost	relay;
 };
