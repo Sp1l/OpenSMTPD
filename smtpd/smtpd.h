@@ -359,11 +359,6 @@ struct table_backend {
 };
 
 
-enum dest_type {
-	DEST_DOM,
-	DEST_VDOM
-};
-
 struct delivery_mta {
 	struct relayhost	relay;
 };
