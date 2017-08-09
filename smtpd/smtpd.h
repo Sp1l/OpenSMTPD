@@ -380,43 +380,6 @@ enum decision {
 	R_ACCEPT
 };
 
-struct rule {
-	uint64_t			r_id;
-	TAILQ_ENTRY(rule)		r_entry;
-	enum decision			r_decision;
-	uint8_t				r_nottag;
-	char				r_tag[SMTPD_TAG_SIZE];
-
-	uint8_t				r_notsources;
-	struct table		       *r_sources;
-
-	uint8_t				r_notsenders;
-	struct table		       *r_senders;
-
-	uint8_t				r_notrecipients;
-	struct table		       *r_recipients;
-
-	uint8_t				r_notdestination;
-	enum dest_type			r_desttype;
-	struct table		       *r_destination;
-
-	uint8_t				r_wantauth;
-	uint8_t				r_negwantauth;
-
-	enum action_type		r_action;
-	union rule_dest {
-		char			buffer[EXPAND_BUFFER];
-		struct relayhost	relayhost;
-	}				r_value;
-
-	struct mailaddr		       *r_as;
-	struct table		       *r_mapping;
-	struct table		       *r_userbase;
-	time_t				r_qexpire;
-	uint8_t				r_forwardonly;
-	char				r_delivery_user[LINE_MAX];
-};
-
 struct delivery_mda {
 	enum action_type	method;
 	char			usertable[SMTPD_TABLENAME_SIZE];
@@ -627,7 +590,6 @@ struct smtpd {
 
 	TAILQ_HEAD(listenerlist, listener)	*sc_listeners;
 
-	TAILQ_HEAD(rulelist, rule)		*sc_rules;
 	TAILQ_HEAD(matchlist, match)		*sc_matches;
 	struct dict				*sc_dispatchers;
 
@@ -1455,7 +1417,6 @@ int queue_message_walk(struct envelope *, uint32_t, int *, void **);
 
 
 /* ruleset.c */
-struct rule *ruleset_match(const struct envelope *);
 struct match *ruleset_match_new(const struct envelope *);
 
 
@@ -1561,7 +1522,6 @@ const char *ss_to_text(const struct sockaddr_storage *);
 const char *time_to_text(time_t);
 const char *duration_to_text(time_t);
 const char *relayhost_to_text(const struct relayhost *);
-const char *rule_to_text(struct rule *);
 const char *match_to_text(struct match *);
 const char *sockaddr_to_text(struct sockaddr *);
 const char *mailaddr_to_text(const struct mailaddr *);

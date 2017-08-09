@@ -42,7 +42,6 @@ purge_config(uint8_t what)
 	struct dispatcher	*d;
 	struct listener	*l;
 	struct table	*t;
-	struct rule	*r;
 	struct match	*m;
 	struct pki	*p;
 	const char	*k;
@@ -63,19 +62,12 @@ purge_config(uint8_t what)
 		env->sc_tables_dict = NULL;
 	}
 	if (what & PURGE_RULES) {
-		while ((r = TAILQ_FIRST(env->sc_rules)) != NULL) {
-			TAILQ_REMOVE(env->sc_rules, r, r_entry);
-			free(r);
-		}
-		free(env->sc_rules);
-		env->sc_rules = NULL;
-
 		while ((m = TAILQ_FIRST(env->sc_matches)) != NULL) {
 			TAILQ_REMOVE(env->sc_matches, m, entry);
 			free(m);
 		}
-		free(env->sc_rules);
-		env->sc_rules = NULL;
+		free(env->sc_matches);
+		env->sc_matches = NULL;
 	}
 	if (what & PURGE_DISPATCHERS) {
 		while (dict_poproot(env->sc_dispatchers, (void **)&d)) {

@@ -93,11 +93,9 @@ char		*symget(const char *);
 
 struct smtpd		*conf = NULL;
 static int		 errors = 0;
-static uint64_t		 ruleid = 0;
 
 struct filter_conf	*filter = NULL;
 struct table		*table = NULL;
-struct rule		*rule = NULL;
 struct mta_limits	*limits;
 static struct pki	*pki;
 static struct ca	*sca;
@@ -184,8 +182,7 @@ typedef struct {
 %token  <v.number>	NUMBER
 %type	<v.table>	table
 %type	<v.number>	size negation
-%type	<v.table>	tables tablenew tableref alias virtual userbase
-%type	<v.string>	tagged
+%type	<v.table>	tables tablenew tableref
 %%
 
 grammar		: /* empty */
@@ -196,7 +193,6 @@ grammar		: /* empty */
 		| grammar table '\n'
 		| grammar dispatcher '\n'
 		| grammar match '\n'
-		| grammar rule '\n'
 		| grammar error '\n'		{ file->errors++; }
 		;
 
@@ -766,24 +762,6 @@ size		: NUMBER		{
 		}
 		;
 
-tagged		: TAGGED negation STRING       		{
-			if (strlcpy(rule->r_tag, $3, sizeof rule->r_tag)
-			    >= sizeof rule->r_tag) {
-				yyerror("tag name too long: %s", $3);
-				free($3);
-				YYERROR;
-			}
-			free($3);
-			rule->r_nottag = $2;
-		}
-		;
-
-authenticated  	: negation AUTHENTICATED	{
-			rule->r_wantauth = 1;
-			rule->r_negwantauth = $1;
-		}
-		;
-
 bouncedelay	: STRING {
 			time_t	d;
 			int	i;
@@ -1212,143 +1190,6 @@ if_listen	: opt_if_listen if_listen
 		| /* empty */
 		;
 
-opt_relay_common: AS STRING	{
-			struct mailaddr maddr, *maddrp;
-
-			if (!text_to_mailaddr(&maddr, $2)) {
-				yyerror("invalid parameter to AS: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			free($2);
-
-			if (maddr.user[0] == '\0' && maddr.domain[0] == '\0') {
-				yyerror("invalid empty parameter to AS");
-				YYERROR;
-			}
-			else if (maddr.domain[0] == '\0') {
-				if (strlcpy(maddr.domain, conf->sc_hostname,
-					sizeof (maddr.domain))
-				    >= sizeof (maddr.domain)) {
-					yyerror("hostname too long for AS parameter: %s",
-					    conf->sc_hostname);
-					YYERROR;
-				}
-			}
-			rule->r_as = xmemdup(&maddr, sizeof (*maddrp), "parse relay_as: AS");
-		}
-		| SOURCE tables			{
-			struct table	*t = $2;
-			if (!table_check_use(t, T_DYNAMIC|T_LIST, K_SOURCE)) {
-				yyerror("invalid use of table \"%s\" as "
-				    "SOURCE parameter", t->t_name);
-				YYERROR;
-			}
-			(void)strlcpy(rule->r_value.relayhost.sourcetable, t->t_name,
-			    sizeof rule->r_value.relayhost.sourcetable);
-		}
-		| HOSTNAME STRING {
-			(void)strlcpy(rule->r_value.relayhost.heloname, $2,
-			    sizeof rule->r_value.relayhost.heloname);
-			free($2);
-		}
-		| HOSTNAMES tables		{
-			struct table	*t = $2;
-			if (!table_check_use(t, T_DYNAMIC|T_HASH, K_ADDRNAME)) {
-				yyerror("invalid use of table \"%s\" as "
-				    "HOSTNAMES parameter", t->t_name);
-				YYERROR;
-			}
-			(void)strlcpy(rule->r_value.relayhost.helotable, t->t_name,
-			    sizeof rule->r_value.relayhost.helotable);
-		}
-		| PKI STRING {
-			if (!lowercase(rule->r_value.relayhost.pki_name, $2,
-				sizeof(rule->r_value.relayhost.pki_name))) {
-				yyerror("pki name too long: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			if (dict_get(conf->sc_pki_dict,
-				rule->r_value.relayhost.pki_name) == NULL) {
-				log_warnx("pki name not found: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			free($2);
-		}
-		| CA STRING {
-			if (!lowercase(rule->r_value.relayhost.ca_name, $2,
-				sizeof(rule->r_value.relayhost.ca_name))) {
-				yyerror("ca name too long: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			if (dict_get(conf->sc_ca_dict,
-				rule->r_value.relayhost.ca_name) == NULL) {
-				log_warnx("ca name not found: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			free($2);
-		}
-		;
-
-opt_relay	: BACKUP STRING			{
-			rule->r_value.relayhost.flags |= F_BACKUP;
-			if (strlcpy(rule->r_value.relayhost.hostname, $2,
-				sizeof (rule->r_value.relayhost.hostname))
-			    >= sizeof (rule->r_value.relayhost.hostname)) {
-				log_warnx("hostname too long: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			free($2);
-		}
-		| BACKUP       			{
-			rule->r_value.relayhost.flags |= F_BACKUP;
-			(void)strlcpy(rule->r_value.relayhost.hostname,
-			    conf->sc_hostname,
-			    sizeof (rule->r_value.relayhost.hostname));
-		}
-		| TLS       			{
-			rule->r_value.relayhost.flags |= F_STARTTLS;
-		}
-		| TLS VERIFY			{
-			rule->r_value.relayhost.flags |= F_STARTTLS|F_TLS_VERIFY;
-		}
-		;
-
-relay		: opt_relay_common relay
-		| opt_relay relay
-		| /* empty */
-		;
-
-opt_relay_via	: AUTH tables {
-			struct table   *t = $2;
-
-			if (!table_check_use(t, T_DYNAMIC|T_HASH, K_CREDENTIALS)) {
-				yyerror("invalid use of table \"%s\" as AUTH parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			(void)strlcpy(rule->r_value.relayhost.authtable, t->t_name,
-			    sizeof(rule->r_value.relayhost.authtable));
-		}
-		| VERIFY {
-			if (!(rule->r_value.relayhost.flags & F_SSL)) {
-				yyerror("cannot \"verify\" with insecure protocol");
-				YYERROR;
-			}
-			rule->r_value.relayhost.flags |= F_TLS_VERIFY;
-		}
-		;
-
-relay_via	: opt_relay_common relay_via
-		| opt_relay_via relay_via
-		| /* empty */
-		;
-
 main		: BOUNCEWARN {
 			memset(conf->sc_bounce_warn, 0, sizeof conf->sc_bounce_warn);
 		} bouncedelays
@@ -1572,364 +1413,10 @@ tables		: tablenew			{ $$ = $1; }
 		| tableref			{ $$ = $1; }
 		;
 
-alias		: ALIAS tables			{
-			struct table   *t = $2;
-
-			if (!table_check_use(t, T_DYNAMIC|T_HASH, K_ALIAS)) {
-				yyerror("invalid use of table \"%s\" as ALIAS parameter",
-				    t->t_name);
-				YYERROR;
-			}
-
-			$$ = t;
-		}
-		;
-
-virtual		: VIRTUAL tables		{
-			struct table   *t = $2;
-
-			if (!table_check_use(t, T_DYNAMIC|T_HASH, K_ALIAS)) {
-				yyerror("invalid use of table \"%s\" as VIRTUAL parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			$$ = t;
-		}
-		;
-
-usermapping	: alias		{
-			if (rule->r_mapping) {
-				yyerror("alias specified multiple times");
-				YYERROR;
-			}
-			rule->r_desttype = DEST_DOM;
-			rule->r_mapping = $1;
-		}
-		| virtual	{
-			if (rule->r_mapping) {
-				yyerror("virtual specified multiple times");
-				YYERROR;
-			}
-			rule->r_desttype = DEST_VDOM;
-			rule->r_mapping = $1;
-		}
-		;
-
-userbase	: USERBASE tables	{
-			struct table   *t = $2;
-
-			if (rule->r_userbase) {
-				yyerror("userbase specified multiple times");
-				YYERROR;
-			}
-			if (!table_check_use(t, T_DYNAMIC|T_HASH, K_USERINFO)) {
-				yyerror("invalid use of table \"%s\" as USERBASE parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			rule->r_userbase = t;
-		}
-		;
-
-deliver_as	: AS STRING	{
-			if (strlcpy(rule->r_delivery_user, $2,
-			    sizeof(rule->r_delivery_user))
-			    >= sizeof(rule->r_delivery_user))
-				fatal("username too long");
-			free($2);
-		}
-		| /* empty */	{}
-		;
-
-deliver_action	: DELIVER TO MAILDIR			{
-			rule->r_action = A_MAILDIR;
-			if (strlcpy(rule->r_value.buffer, "~/Maildir",
-			    sizeof(rule->r_value.buffer)) >=
-			    sizeof(rule->r_value.buffer))
-				fatal("pathname too long");
-		}
-		| DELIVER TO MAILDIR STRING		{
-			rule->r_action = A_MAILDIR;
-			if (strlcpy(rule->r_value.buffer, $4,
-			    sizeof(rule->r_value.buffer)) >=
-			    sizeof(rule->r_value.buffer))
-				fatal("pathname too long");
-			free($4);
-		}
-		| DELIVER TO MBOX			{
-			rule->r_action = A_MBOX;
-			if (strlcpy(rule->r_value.buffer, _PATH_MAILDIR "/%u",
-			    sizeof(rule->r_value.buffer))
-			    >= sizeof(rule->r_value.buffer))
-				fatal("pathname too long");
-		}
-		| DELIVER TO LMTP STRING deliver_as	{
-			rule->r_action = A_LMTP;
-			if (strchr($4, ':') || $4[0] == '/') {
-				if (strlcpy(rule->r_value.buffer, $4,
-					sizeof(rule->r_value.buffer))
-					>= sizeof(rule->r_value.buffer))
-					fatal("lmtp destination too long");
-			} else
-				fatal("invalid lmtp destination");
-			free($4);
-		}
-		| DELIVER TO LMTP STRING RCPT_TO deliver_as 	{
-			rule->r_action = A_LMTP;
-			if (strchr($4, ':') || $4[0] == '/') {
-				if (strlcpy(rule->r_value.buffer, $4,
-					sizeof(rule->r_value.buffer))
-					>= sizeof(rule->r_value.buffer))
-					fatal("lmtp destination too long");
-				if (strlcat(rule->r_value.buffer, " rcpt-to",
-					sizeof(rule->r_value.buffer))
-					>= sizeof(rule->r_value.buffer))
-					fatal("lmtp recipient too long");
-			} else
-				fatal("invalid lmtp destination");
-			free($4);
-		}
-		| DELIVER TO MDA STRING deliver_as	{
-			rule->r_action = A_MDA;
-			if (strlcpy(rule->r_value.buffer, $4,
-			    sizeof(rule->r_value.buffer))
-			    >= sizeof(rule->r_value.buffer))
-				fatal("command too long");
-			free($4);
-		}
-		;
-
-relay_action   	: RELAY relay {
-			rule->r_action = A_RELAY;
-		}
-		| RELAY VIA STRING {
-			rule->r_action = A_RELAYVIA;
-			if (!text_to_relayhost(&rule->r_value.relayhost, $3)) {
-				yyerror("error: invalid url: %s", $3);
-				free($3);
-				YYERROR;
-			}
-			free($3);
-		} relay_via {
-			/* no worries, F_AUTH cant be set without SSL */
-			if (rule->r_value.relayhost.flags & F_AUTH) {
-				if (rule->r_value.relayhost.authtable[0] == '\0') {
-					yyerror("error: auth without auth table");
-					YYERROR;
-				}
-			}
-		}
-		;
-
 negation	: '!'		{ $$ = 1; }
 		| /* empty */	{ $$ = 0; }
 		;
 
-from		: FROM negation SOURCE tables       		{
-			struct table   *t = $4;
-
-			if (rule->r_sources) {
-				yyerror("from specified multiple times");
-				YYERROR;
-			}
-			if (!table_check_use(t, T_DYNAMIC|T_LIST, K_NETADDR)) {
-				yyerror("invalid use of table \"%s\" as FROM parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			rule->r_notsources = $2;
-			rule->r_sources = t;
-		}
-		| FROM negation ANY    		{
-			if (rule->r_sources) {
-				yyerror("from specified multiple times");
-				YYERROR;
-			}
-			rule->r_sources = table_find("<anyhost>", NULL);
-			rule->r_notsources = $2;
-		}
-		| FROM negation LOCAL  		{
-			if (rule->r_sources) {
-				yyerror("from specified multiple times");
-				YYERROR;
-			}
-			rule->r_sources = table_find("<localhost>", NULL);
-			rule->r_notsources = $2;
-		}
-		;
-
-for		: FOR negation DOMAIN tables {
-			struct table   *t = $4;
-
-			if (rule->r_destination) {
-				yyerror("for specified multiple times");
-				YYERROR;
-			}
-			if (!table_check_use(t, T_DYNAMIC|T_LIST, K_DOMAIN)) {
-				yyerror("invalid use of table \"%s\" as DOMAIN parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			rule->r_notdestination = $2;
-			rule->r_destination = t;
-		}
-		| FOR negation ANY    		{
-			if (rule->r_destination) {
-				yyerror("for specified multiple times");
-				YYERROR;
-			}
-			rule->r_notdestination = $2;
-			rule->r_destination = table_find("<anydestination>", NULL);
-		}
-		| FOR negation LOCAL  		{
-			if (rule->r_destination) {
-				yyerror("for specified multiple times");
-				YYERROR;
-			}
-			rule->r_notdestination = $2;
-			rule->r_destination = table_find("<localnames>", NULL);
-		}
-		;
-
-sender		: SENDER negation tables			{
-			struct table   *t = $3;
-
-			if (rule->r_senders) {
-				yyerror("sender specified multiple times");
-				YYERROR;
-			}
-
-			if (!table_check_use(t, T_DYNAMIC|T_LIST, K_MAILADDR)) {
-				yyerror("invalid use of table \"%s\" as SENDER parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			rule->r_notsenders = $2;
-			rule->r_senders = t;
-		}
-		;
-
-recipient      	: RECIPIENT negation tables			{
-			struct table   *t = $3;
-
-			if (rule->r_recipients) {
-				yyerror("recipient specified multiple times");
-				YYERROR;
-			}
-
-			if (!table_check_use(t, T_DYNAMIC|T_LIST, K_MAILADDR)) {
-				yyerror("invalid use of table \"%s\" as RECIPIENT parameter",
-				    t->t_name);
-				YYERROR;
-			}
-			rule->r_notrecipients = $2;
-			rule->r_recipients = t;
-		}
-		;
-
-forwardonly	: FORWARD_ONLY {
-			if (rule->r_forwardonly) {
-				yyerror("forward-only specified multiple times");
-				YYERROR;
-			}
-			rule->r_forwardonly = 1;
-		}
-		;
-
-expire		: EXPIRE STRING {
-			if (rule->r_qexpire != -1) {
-				yyerror("expire specified multiple times");
-				YYERROR;
-			}
-			rule->r_qexpire = delaytonum($2);
-			if (rule->r_qexpire == -1) {
-				yyerror("invalid expire delay: %s", $2);
-				free($2);
-				YYERROR;
-			}
-			free($2);
-		}
-		;
-
-opt_decision	: sender
-		| recipient
-		| from
-		| for
-		| tagged
-		| authenticated
-		;
-decision	: opt_decision decision
-		|
-		;
-
-opt_lookup	: userbase
-		| usermapping
-		;
-lookup		: opt_lookup lookup
-		|
-		;
-
-action		: deliver_action
-		| relay_action
-		|
-		;
-
-opt_accept	: expire
-		| forwardonly
-		;
-
-accept_params	: opt_accept accept_params
-		|
-		;
-
-rule		: ACCEPT {
-			rule = xcalloc(1, sizeof(*rule), "parse rule: ACCEPT");
-			rule->r_id = ++ruleid;
-			rule->r_action = A_NONE;
-			rule->r_decision = R_ACCEPT;
-			rule->r_desttype = DEST_DOM;
-			rule->r_qexpire = -1;
-		} decision lookup action accept_params {
-			if (!rule->r_sources)
-				rule->r_sources = table_find("<localhost>", NULL);
-			if (!rule->r_destination)
-			 	rule->r_destination = table_find("<localnames>", NULL);
-			if (!rule->r_userbase)
-				rule->r_userbase = table_find("<getpwnam>", NULL);
-			if (rule->r_qexpire == -1)
-				rule->r_qexpire = conf->sc_qexpire;
-			if (rule->r_action == A_RELAY || rule->r_action == A_RELAYVIA) {
-				if (rule->r_userbase != table_find("<getpwnam>", NULL)) {
-					yyerror("userbase may not be used with a relay rule");
-					YYERROR;
-				}
-				if (rule->r_mapping) {
-					yyerror("aliases/virtual may not be used with a relay rule");
-					YYERROR;
-				}
-			}
-			if (rule->r_forwardonly && rule->r_action != A_NONE) {
-				yyerror("forward-only may not be used with a default action");
-				YYERROR;
-			}
-
-			TAILQ_INSERT_TAIL(conf->sc_rules, rule, r_entry);
-			rule = NULL;
-		}
-		| REJECT {
-			rule = xcalloc(1, sizeof(*rule), "parse rule: REJECT");
-			rule->r_id = ++ruleid;
-			rule->r_decision = R_REJECT;
-			rule->r_desttype = DEST_DOM;
-		} decision {
-			if (!rule->r_sources)
-				rule->r_sources = table_find("<localhost>", NULL);
-			if (!rule->r_destination)
-				rule->r_destination = table_find("<localnames>", NULL);
-			TAILQ_INSERT_TAIL(conf->sc_rules, rule, r_entry);
-			rule = NULL;
-		}
-		;
 %%
 
 struct keywords {
@@ -2390,7 +1877,6 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	conf->sc_subaddressing_delim = SUBADDRESSING_DELIMITER;
 
 	conf->sc_tables_dict = calloc(1, sizeof(*conf->sc_tables_dict));
-	conf->sc_rules = calloc(1, sizeof(*conf->sc_rules));
 	conf->sc_matches = calloc(1, sizeof(*conf->sc_matches));
 	conf->sc_dispatchers = calloc(1, sizeof(*conf->sc_dispatchers));
 	conf->sc_listeners = calloc(1, sizeof(*conf->sc_listeners));
@@ -2403,7 +1889,6 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	conf->sc_bounce_warn[0] = 3600 * 4;
 
 	if (conf->sc_tables_dict == NULL	||
-	    conf->sc_rules == NULL		||
 	    conf->sc_matches == NULL		||
 	    conf->sc_dispatchers == NULL	||
 	    conf->sc_listeners == NULL		||
@@ -2413,7 +1898,6 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	    conf->sc_limits_dict == NULL) {
 		log_warn("warn: cannot allocate memory");
 		free(conf->sc_tables_dict);
-		free(conf->sc_rules);
 		free(conf->sc_matches);
 		free(conf->sc_dispatchers);
 		free(conf->sc_listeners);
@@ -2427,7 +1911,6 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	errors = 0;
 
 	table = NULL;
-	rule = NULL;
 
 	dict_init(&conf->sc_filters);
 	dict_init(conf->sc_dispatchers);
@@ -2443,7 +1926,6 @@ parse_config(struct smtpd *x_conf, const char *filename, int opts)
 	dict_xset(conf->sc_limits_dict, "default", limits);
 
 	TAILQ_INIT(conf->sc_listeners);
-	TAILQ_INIT(conf->sc_rules);
 	TAILQ_INIT(conf->sc_matches);
 
 	conf->sc_qexpire = SMTPD_QUEUE_EXPIRY;
