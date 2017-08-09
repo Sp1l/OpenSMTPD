@@ -11,7 +11,6 @@ SRCS+=	compress_backend.c
 SRCS+=	config.c
 SRCS+=	control.c
 SRCS+=	crypto.c
-#SRCS+=	delivery.c
 SRCS+=	dict.c
 SRCS+=	dns.c
 SRCS+=	envelope.c
@@ -57,12 +56,6 @@ SRCS+=		rfc2822.c
 
 # backends
 SRCS+=		compress_gzip.c
-
-#SRCS+=		delivery_filename.c
-#SRCS+=		delivery_maildir.c
-#SRCS+=		delivery_mbox.c
-#SRCS+=		delivery_mda.c
-#SRCS+=		delivery_lmtp.c
 
 SRCS+=		table_db.c
 SRCS+=		table_getpwnam.c
