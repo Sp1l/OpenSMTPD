@@ -375,11 +375,6 @@ enum action_type {
 	A_LMTP
 };
 
-enum decision {
-	R_REJECT,
-	R_ACCEPT
-};
-
 struct delivery_mda {
 	enum action_type	method;
 	char			usertable[SMTPD_TABLENAME_SIZE];
