@@ -160,6 +160,7 @@ union lookup {
 	struct mailaddr		 mailaddr;
 	struct addrname		 addrname;
 	struct maddrmap		*maddrmap;
+	struct relayhost	 relayhost;
 };
 
 /*
@@ -273,6 +274,7 @@ enum imsg_type {
 	IMSG_MTA_LOOKUP_CREDENTIALS,
 	IMSG_MTA_LOOKUP_SOURCE,
 	IMSG_MTA_LOOKUP_HELO,
+	IMSG_MTA_LOOKUP_SMARTHOST,
 	IMSG_MTA_OPEN_MESSAGE,
 	IMSG_MTA_SCHEDULE,
 	IMSG_MTA_TLS_INIT,
@@ -756,6 +758,7 @@ struct mta_relay {
 	SPLAY_ENTRY(mta_relay)	 entry;
 	uint64_t		 id;
 
+	struct dispatcher	*dispatcher;
 	struct mta_domain	*domain;
 	struct mta_limits	*limits;
 	int			 flags;
@@ -789,7 +792,8 @@ struct mta_relay {
 #define RELAY_WAIT_LIMITS	0x08
 #define RELAY_WAIT_SOURCE	0x10
 #define RELAY_WAIT_CONNECTOR	0x20
-#define RELAY_WAITMASK		0x3f
+#define RELAY_WAIT_SMARTHOST	0x40
+#define RELAY_WAITMASK		0x7f
 	int			 status;
 
 	int			 refcount;

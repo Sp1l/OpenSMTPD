@@ -59,10 +59,12 @@
 
 static void mta_query_mx(struct mta_relay *);
 static void mta_query_secret(struct mta_relay *);
+static void mta_query_smarthost(struct mta_relay *);
 static void mta_query_preference(struct mta_relay *);
 static void mta_query_source(struct mta_relay *);
 static void mta_on_mx(void *, void *, void *);
 static void mta_on_secret(struct mta_relay *, const char *);
+static void mta_on_smarthost(struct mta_relay *, const char *);
 static void mta_on_preference(struct mta_relay *, int);
 static void mta_on_source(struct mta_relay *, struct mta_source *);
 static void mta_on_timeout(struct runq *, void *);
@@ -145,6 +147,7 @@ static struct mta_block_tree		blocks;
 static struct tree wait_mx;
 static struct tree wait_preference;
 static struct tree wait_secret;
+static struct tree wait_smarthost;
 static struct tree wait_source;
 static struct tree flush_evp;
 static struct event ev_flush_evp;
@@ -192,6 +195,7 @@ mta_imsg(struct mproc *p, struct imsg *imsg)
 	const char		*secret;
 	const char		*hostname;
 	const char		*dom;
+	const char		*smarthost;
 	uint64_t		 reqid;
 	time_t			 t;
 	char			 buf[LINE_MAX];
@@ -314,6 +318,19 @@ mta_imsg(struct mproc *p, struct imsg *imsg)
 			relay = tree_xpop(&wait_source, reqid);
 			mta_on_source(relay, (status == LKA_OK) ?
 			    mta_source((struct sockaddr *)&ss) : NULL);
+			return;
+
+		case IMSG_MTA_LOOKUP_SMARTHOST:
+			m_msg(&m, imsg);
+			m_get_id(&m, &reqid);
+			m_get_int(&m, &status);
+			smarthost = NULL;
+			if (status == LKA_OK)
+				m_get_string(&m, &smarthost);
+			m_end(&m);
+
+			relay = tree_xpop(&wait_smarthost, reqid);
+			mta_on_smarthost(relay, smarthost);
 			return;
 
 		case IMSG_MTA_LOOKUP_HELO:
@@ -578,6 +595,7 @@ mta_postprivdrop(void)
 	SPLAY_INIT(&blocks);
 
 	tree_init(&wait_secret);
+	tree_init(&wait_smarthost);
 	tree_init(&wait_mx);
 	tree_init(&wait_preference);
 	tree_init(&wait_source);
@@ -863,6 +881,26 @@ mta_query_secret(struct mta_relay *relay)
 }
 
 static void
+mta_query_smarthost(struct mta_relay *relay)
+{
+	if (relay->status & RELAY_WAIT_SMARTHOST)
+		return;
+
+	log_debug("debug: mta: querying smarthost for %s...",
+	    mta_relay_to_text(relay));
+
+	tree_xset(&wait_smarthost, relay->id, relay);
+	relay->status |= RELAY_WAIT_SMARTHOST;
+
+	m_create(p_lka, IMSG_MTA_LOOKUP_SMARTHOST, 0, 0, -1);
+	m_add_id(p_lka, relay->id);
+	m_add_string(p_lka, relay->dispatcher->u.remote.smarthost);
+	m_close(p_lka);
+
+	mta_relay_ref(relay);
+}
+
+static void
 mta_query_preference(struct mta_relay *relay)
 {
 	if (relay->status & RELAY_WAIT_PREFERENCE)
@@ -972,6 +1010,24 @@ mta_on_secret(struct mta_relay *relay, const char *secret)
 	relay->status &= ~RELAY_WAIT_SECRET;
 	mta_drain(relay);
 	mta_relay_unref(relay); /* from mta_query_secret() */
+}
+
+static void
+mta_on_smarthost(struct mta_relay *relay, const char *smarthost)
+{
+	log_debug("debug: mta: ... got smarthost for %s: %s",
+	    mta_relay_to_text(relay), smarthost);
+
+	if (smarthost == NULL) {
+		log_warnx("warn: Failed to retrieve secret "
+			    "for %s", mta_relay_to_text(relay));
+		relay->fail = IMSG_MTA_DELIVERY_TEMPFAIL;
+		relay->failstr = "Could not retrieve credentials";
+	}
+
+	relay->status &= ~RELAY_WAIT_SMARTHOST;
+	mta_drain(relay);
+	mta_relay_unref(relay); /* from mta_query_smarthost() */
 }
 
 static void
@@ -1631,6 +1687,9 @@ mta_relay(struct envelope *e)
 
 	memset(&key, 0, sizeof key);
 
+	key.dispatcher = dict_get(env->sc_dispatchers, e->dispatcher);
+
+	/* XXX */
 	if (e->agent.mta.relay.flags & RELAY_BACKUP) {
 		key.domain = mta_domain(e->dest.domain, 0);
 		key.backupname = e->agent.mta.relay.hostname;
