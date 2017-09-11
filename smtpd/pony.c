@@ -99,6 +99,7 @@ pony_imsg(struct mproc *p, struct imsg *imsg)
 	case IMSG_QUEUE_TRANSFER:
 	case IMSG_MTA_OPEN_MESSAGE:
 	case IMSG_MTA_LOOKUP_CREDENTIALS:
+	case IMSG_MTA_LOOKUP_SMARTHOST:
 	case IMSG_MTA_LOOKUP_SOURCE:
 	case IMSG_MTA_LOOKUP_HELO:
 	case IMSG_MTA_DNS_HOST:

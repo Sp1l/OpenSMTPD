@@ -57,14 +57,15 @@
 #define RELAY_ONHOLD		0x01
 #define RELAY_HOLDQ		0x02
 
+static void mta_dispatch_envelope(struct envelope *, const char *);
+static void mta_query_smarthost(struct envelope *);
+static void mta_on_smarthost(struct envelope *, const char *);
 static void mta_query_mx(struct mta_relay *);
 static void mta_query_secret(struct mta_relay *);
-static void mta_query_smarthost(struct mta_relay *);
 static void mta_query_preference(struct mta_relay *);
 static void mta_query_source(struct mta_relay *);
 static void mta_on_mx(void *, void *, void *);
 static void mta_on_secret(struct mta_relay *, const char *);
-static void mta_on_smarthost(struct mta_relay *, const char *);
 static void mta_on_preference(struct mta_relay *, int);
 static void mta_on_source(struct mta_relay *, struct mta_source *);
 static void mta_on_timeout(struct runq *, void *);
@@ -175,12 +176,10 @@ void mta_hoststat_uncache(const char *, uint64_t);
 void mta_hoststat_reschedule(const char *);
 static void mta_hoststat_remove_entry(struct hoststat *);
 
-
 void
 mta_imsg(struct mproc *p, struct imsg *imsg)
 {
 	struct mta_relay	*relay;
-	struct mta_task		*task;
 	struct mta_domain	*domain;
 	struct mta_host		*host;
 	struct mta_route	*route;
@@ -188,9 +187,8 @@ mta_imsg(struct mproc *p, struct imsg *imsg)
 	struct mta_mx		*mx, *imx;
 	struct mta_source	*source;
 	struct hoststat		*hs;
-	struct mta_envelope	*e;
 	struct sockaddr_storage	 ss;
-	struct envelope		 evp;
+	struct envelope		 evp, *e;
 	struct msg		 m;
 	const char		*secret;
 	const char		*hostname;
@@ -211,82 +209,7 @@ mta_imsg(struct mproc *p, struct imsg *imsg)
 			m_get_envelope(&m, &evp);
 			m_end(&m);
 
-			relay = mta_relay(&evp);
-			/* ignore if we don't know the limits yet */
-			if (relay->limits &&
-			    relay->ntask >= (size_t)relay->limits->task_hiwat) {
-				if (!(relay->state & RELAY_ONHOLD)) {
-					log_info("smtp-out: hiwat reached on %s: holding envelopes",
-					    mta_relay_to_text(relay));
-					relay->state |= RELAY_ONHOLD;
-				}
-			}
-
-			/*
-			 * If the relay has too many pending tasks, tell the
-			 * scheduler to hold it until further notice
-			 */
-			if (relay->state & RELAY_ONHOLD) {
-				relay->state |= RELAY_HOLDQ;
-				m_create(p_queue, IMSG_MTA_DELIVERY_HOLD, 0, 0, -1);
-				m_add_evpid(p_queue, evp.id);
-				m_add_id(p_queue, relay->id);
-				m_close(p_queue);
-				mta_relay_unref(relay); /* from here */
-				return;
-			}
-
-			task = NULL;
-			TAILQ_FOREACH(task, &relay->tasks, entry)
-				if (task->msgid == evpid_to_msgid(evp.id))
-					break;
-
-			if (task == NULL) {
-				task = xmalloc(sizeof *task, "mta_task");
-				TAILQ_INIT(&task->envelopes);
-				task->relay = relay;
-				relay->ntask += 1;
-				TAILQ_INSERT_TAIL(&relay->tasks, task, entry);
-				task->msgid = evpid_to_msgid(evp.id);
-				if (evp.sender.user[0] || evp.sender.domain[0])
-					(void)snprintf(buf, sizeof buf, "%s@%s",
-					    evp.sender.user, evp.sender.domain);
-				else
-					buf[0] = '\0';
-				task->sender = xstrdup(buf, "mta_task:sender");
-				stat_increment("mta.task", 1);
-			}
-
-			e = xcalloc(1, sizeof *e, "mta_envelope");
-			e->id = evp.id;
-			e->creation = evp.creation;
-			(void)snprintf(buf, sizeof buf, "%s@%s",
-			    evp.dest.user, evp.dest.domain);
-			e->dest = xstrdup(buf, "mta_envelope:dest");
-			(void)snprintf(buf, sizeof buf, "%s@%s",
-			    evp.rcpt.user, evp.rcpt.domain);
-			if (strcmp(buf, e->dest))
-				e->rcpt = xstrdup(buf, "mta_envelope:rcpt");
-			e->task = task;
-			if (evp.dsn_orcpt.user[0] && evp.dsn_orcpt.domain[0]) {
-				(void)snprintf(buf, sizeof buf, "%s@%s",
-			    	    evp.dsn_orcpt.user, evp.dsn_orcpt.domain);
-				e->dsn_orcpt = xstrdup(buf,
-				    "mta_envelope:dsn_orcpt");
-			}
-			(void)strlcpy(e->dsn_envid, evp.dsn_envid,
-			    sizeof e->dsn_envid);
-			e->dsn_notify = evp.dsn_notify;
-			e->dsn_ret = evp.dsn_ret;
-
-			TAILQ_INSERT_TAIL(&task->envelopes, e, entry);
-			log_debug("debug: mta: received evp:%016" PRIx64
-			    " for <%s>", e->id, e->dest);
-
-			stat_increment("mta.envelope", 1);
-
-			mta_drain(relay);
-			mta_relay_unref(relay); /* from here */
+			mta_dispatch_envelope(&evp, NULL);
 			return;
 
 		case IMSG_MTA_OPEN_MESSAGE:
@@ -329,8 +252,8 @@ mta_imsg(struct mproc *p, struct imsg *imsg)
 				m_get_string(&m, &smarthost);
 			m_end(&m);
 
-			relay = tree_xpop(&wait_smarthost, reqid);
-			mta_on_smarthost(relay, smarthost);
+			e = tree_xpop(&wait_smarthost, reqid);
+			mta_on_smarthost(e, smarthost);
 			return;
 
 		case IMSG_MTA_LOOKUP_HELO:
@@ -731,6 +654,131 @@ mta_route_next_task(struct mta_relay *relay, struct mta_route *route)
 }
 
 static void
+mta_dispatch_envelope(struct envelope *evp, const char *smarthost)
+{
+	struct mta_relay	*relay;
+	struct mta_task		*task;
+	struct mta_envelope	*e;
+	struct dispatcher	*dispatcher;
+	char			 buf[LINE_MAX];
+
+	dispatcher = dict_xget(env->sc_dispatchers, evp->dispatcher);
+	if (dispatcher->u.remote.smarthost && smarthost == NULL) {
+		mta_query_smarthost(evp);
+		return;
+	}
+
+	memset(&evp->agent.mta, 0, sizeof(evp->agent.mta));
+
+	/* dispatcher init */
+	if (dispatcher->u.remote.pki)
+		strlcpy(evp->agent.mta.relay.pki_name, dispatcher->u.remote.pki,
+		    sizeof(evp->agent.mta.relay.pki_name));
+	if (dispatcher->u.remote.ca)
+		strlcpy(evp->agent.mta.relay.ca_name, dispatcher->u.remote.ca,
+		    sizeof(evp->agent.mta.relay.ca_name));
+	if (dispatcher->u.remote.auth)
+		strlcpy(evp->agent.mta.relay.authtable, dispatcher->u.remote.auth,
+		    sizeof(evp->agent.mta.relay.authtable));
+	if (dispatcher->u.remote.source)
+		strlcpy(evp->agent.mta.relay.sourcetable, dispatcher->u.remote.source,
+		    sizeof(evp->agent.mta.relay.sourcetable));
+	if (dispatcher->u.remote.helo_source)
+		strlcpy(evp->agent.mta.relay.helotable, dispatcher->u.remote.helo_source,
+		    sizeof(evp->agent.mta.relay.helotable));
+	if (dispatcher->u.remote.helo)
+		strlcpy(evp->agent.mta.relay.heloname, dispatcher->u.remote.helo,
+		    sizeof(evp->agent.mta.relay.heloname));
+
+	if (smarthost) {
+		if (text_to_relayhost(&evp->agent.mta.relay, smarthost) == 0) {
+			m_create(p_queue, IMSG_MTA_DELIVERY_TEMPFAIL, 0, 0, -1);
+			m_add_evpid(p_queue, evp->id);
+			m_add_string(p_queue, "Cannot parse smarthost");
+			m_add_int(p_queue, ESC_OTHER_STATUS);
+			m_close(p_queue);
+		}
+	}
+
+	relay = mta_relay(evp);
+	/* ignore if we don't know the limits yet */
+	if (relay->limits &&
+	    relay->ntask >= (size_t)relay->limits->task_hiwat) {
+		if (!(relay->state & RELAY_ONHOLD)) {
+			log_info("smtp-out: hiwat reached on %s: holding envelopes",
+			    mta_relay_to_text(relay));
+			relay->state |= RELAY_ONHOLD;
+		}
+	}
+
+	/*
+	 * If the relay has too many pending tasks, tell the
+	 * scheduler to hold it until further notice
+	 */
+	if (relay->state & RELAY_ONHOLD) {
+		relay->state |= RELAY_HOLDQ;
+		m_create(p_queue, IMSG_MTA_DELIVERY_HOLD, 0, 0, -1);
+		m_add_evpid(p_queue, evp->id);
+		m_add_id(p_queue, relay->id);
+		m_close(p_queue);
+		mta_relay_unref(relay); /* from here */
+		return;
+	}
+
+	task = NULL;
+	TAILQ_FOREACH(task, &relay->tasks, entry)
+		if (task->msgid == evpid_to_msgid(evp->id))
+			break;
+
+	if (task == NULL) {
+		task = xmalloc(sizeof *task, "mta_task");
+		TAILQ_INIT(&task->envelopes);
+		task->relay = relay;
+		relay->ntask += 1;
+		TAILQ_INSERT_TAIL(&relay->tasks, task, entry);
+		task->msgid = evpid_to_msgid(evp->id);
+		if (evp->sender.user[0] || evp->sender.domain[0])
+			(void)snprintf(buf, sizeof buf, "%s@%s",
+			    evp->sender.user, evp->sender.domain);
+		else
+			buf[0] = '\0';
+		task->sender = xstrdup(buf, "mta_task:sender");
+		stat_increment("mta.task", 1);
+	}
+
+	e = xcalloc(1, sizeof *e, "mta_envelope");
+	e->id = evp->id;
+	e->creation = evp->creation;
+	(void)snprintf(buf, sizeof buf, "%s@%s",
+	    evp->dest.user, evp->dest.domain);
+	e->dest = xstrdup(buf, "mta_envelope:dest");
+	(void)snprintf(buf, sizeof buf, "%s@%s",
+	    evp->rcpt.user, evp->rcpt.domain);
+	if (strcmp(buf, e->dest))
+		e->rcpt = xstrdup(buf, "mta_envelope:rcpt");
+	e->task = task;
+	if (evp->dsn_orcpt.user[0] && evp->dsn_orcpt.domain[0]) {
+		(void)snprintf(buf, sizeof buf, "%s@%s",
+		    evp->dsn_orcpt.user, evp->dsn_orcpt.domain);
+		e->dsn_orcpt = xstrdup(buf,
+		    "mta_envelope:dsn_orcpt");
+	}
+	(void)strlcpy(e->dsn_envid, evp->dsn_envid,
+	    sizeof e->dsn_envid);
+	e->dsn_notify = evp->dsn_notify;
+	e->dsn_ret = evp->dsn_ret;
+
+	TAILQ_INSERT_TAIL(&task->envelopes, e, entry);
+	log_debug("debug: mta: received evp:%016" PRIx64
+	    " for <%s>", e->id, e->dest);
+
+	stat_increment("mta.envelope", 1);
+
+	mta_drain(relay);
+	mta_relay_unref(relay); /* from here */
+}
+
+static void
 mta_delivery_flush_event(int fd, short event, void *arg)
 {
 	struct mta_envelope	*e;
@@ -881,23 +929,27 @@ mta_query_secret(struct mta_relay *relay)
 }
 
 static void
-mta_query_smarthost(struct mta_relay *relay)
+mta_query_smarthost(struct envelope *evp0)
 {
-	if (relay->status & RELAY_WAIT_SMARTHOST)
-		return;
+	struct dispatcher *dispatcher;
+	struct envelope *evp;
 
-	log_debug("debug: mta: querying smarthost for %s...",
-	    mta_relay_to_text(relay));
+	evp = malloc(sizeof(*evp));
+	memmove(evp, evp0, sizeof(*evp));
 
-	tree_xset(&wait_smarthost, relay->id, relay);
-	relay->status |= RELAY_WAIT_SMARTHOST;
+	dispatcher = dict_xget(env->sc_dispatchers, evp->dispatcher);
+
+	log_debug("debug: mta: querying smarthost for %s:%s...",
+	    evp->dispatcher, dispatcher->u.remote.smarthost);
+
+	tree_xset(&wait_smarthost, evp->id, evp);
 
 	m_create(p_lka, IMSG_MTA_LOOKUP_SMARTHOST, 0, 0, -1);
-	m_add_id(p_lka, relay->id);
-	m_add_string(p_lka, relay->dispatcher->u.remote.smarthost);
+	m_add_id(p_lka, evp->id);
+	m_add_string(p_lka, dispatcher->u.remote.smarthost);
 	m_close(p_lka);
 
-	mta_relay_ref(relay);
+	log_debug("debug: mta: querying smarthost");
 }
 
 static void
@@ -1013,21 +1065,20 @@ mta_on_secret(struct mta_relay *relay, const char *secret)
 }
 
 static void
-mta_on_smarthost(struct mta_relay *relay, const char *smarthost)
+mta_on_smarthost(struct envelope *evp, const char *smarthost)
 {
-	log_debug("debug: mta: ... got smarthost for %s: %s",
-	    mta_relay_to_text(relay), smarthost);
-
 	if (smarthost == NULL) {
-		log_warnx("warn: Failed to retrieve secret "
-			    "for %s", mta_relay_to_text(relay));
-		relay->fail = IMSG_MTA_DELIVERY_TEMPFAIL;
-		relay->failstr = "Could not retrieve credentials";
+		log_warnx("warn: Failed to retrieve smarthost "
+			    "for envelope %"PRIx64, evp->id);
+		m_create(p_queue, IMSG_MTA_DELIVERY_TEMPFAIL, 0, 0, -1);
+		m_add_evpid(p_queue, evp->id);
+		m_add_string(p_queue, "Cannot retrieve smarthost");
+		m_add_int(p_queue, ESC_OTHER_STATUS);
+		return;
 	}
 
-	relay->status &= ~RELAY_WAIT_SMARTHOST;
-	mta_drain(relay);
-	mta_relay_unref(relay); /* from mta_query_smarthost() */
+	mta_dispatch_envelope(evp, smarthost);
+	free(evp);
 }
 
 static void
@@ -1687,9 +1738,6 @@ mta_relay(struct envelope *e)
 
 	memset(&key, 0, sizeof key);
 
-	key.dispatcher = dict_get(env->sc_dispatchers, e->dispatcher);
-
-	/* XXX */
 	if (e->agent.mta.relay.flags & RELAY_BACKUP) {
 		key.domain = mta_domain(e->dest.domain, 0);
 		key.backupname = e->agent.mta.relay.hostname;

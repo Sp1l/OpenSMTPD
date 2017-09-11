@@ -283,7 +283,7 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.local.table_alias = t->t_name;
+	dispatcher->u.local.table_alias = strdup(t->t_name);
 }
 | VIRTUAL tables {
 	struct table   *t = $2;
@@ -304,7 +304,7 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.local.table_virtual = t->t_name;
+	dispatcher->u.local.table_virtual = strdup(t->t_name);
 }
 | USERBASE tables {
 	struct table   *t = $2;
@@ -320,7 +320,7 @@ USER STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.local.table_userbase = t->t_name;
+	dispatcher->u.local.table_userbase = strdup(t->t_name);
 }
 ;
 
@@ -382,7 +382,7 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.remote.helo_source = t->t_name;
+	dispatcher->u.remote.helo_source = strdup(t->t_name);
 }
 | PKI STRING {
 	if (dispatcher->u.remote.pki) {
@@ -414,7 +414,7 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.remote.source = t->t_name;
+	dispatcher->u.remote.source = strdup(t->t_name);
 }
 | MAIL_FROM STRING {
 	if (dispatcher->u.remote.mail_from) {
@@ -446,7 +446,7 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.remote.smarthost = t->t_name;
+	dispatcher->u.remote.smarthost = strdup(t->t_name);
 }
 | AUTH tables {
 	struct table   *t = $2;
@@ -467,7 +467,7 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.remote.auth = t->t_name;
+	dispatcher->u.remote.auth = strdup(t->t_name);
 }
 ;
 
@@ -543,7 +543,7 @@ negation TAG tables {
 	}
 
 	match->flag_tag = $1 ? -1 : 1;
-	match->table_tag = t->t_name;
+	match->table_tag = strdup(t->t_name);
 }
 | negation HELO tables {
 	struct table   *t = $3;
@@ -560,7 +560,7 @@ negation TAG tables {
 	}
 
 	match->flag_smtp_helo = $1 ? -1 : 1;
-	match->table_smtp_helo = t->t_name;
+	match->table_smtp_helo = strdup(t->t_name);
 }
 | negation STARTTLS {
 	if (match->flag_smtp_starttls) {
@@ -591,7 +591,7 @@ negation TAG tables {
 	}
 
 	match->flag_smtp_auth = $1 ? -1 : 1;
-	match->table_smtp_auth = t->t_name;
+	match->table_smtp_auth = strdup(t->t_name);
 }
 | negation MAIL_FROM tables {
 	struct table   *t = $3;
@@ -608,7 +608,7 @@ negation TAG tables {
 	}
 
 	match->flag_smtp_mail_from = $1 ? -1 : 1;
-	match->table_smtp_mail_from = t->t_name;
+	match->table_smtp_mail_from = strdup(t->t_name);
 }
 | negation RCPT_TO tables {
 	struct table   *t = $3;
@@ -625,7 +625,7 @@ negation TAG tables {
 	}
 
 	match->flag_smtp_rcpt_to = $1 ? -1 : 1;
-	match->table_smtp_rcpt_to = t->t_name;
+	match->table_smtp_rcpt_to = strdup(t->t_name);
 }
 
 | negation FROM SOCKET {
@@ -644,7 +644,7 @@ negation TAG tables {
 		YYERROR;
 	}
 	match->flag_from = $1 ? -1 : 1;
-	match->table_from = t->t_name;
+	match->table_from = strdup(t->t_name);
 }
 | negation FROM ANY {
 	struct table	*t = table_find("<anyhost>", NULL);
@@ -654,7 +654,7 @@ negation TAG tables {
 		YYERROR;
 	}
 	match->flag_from = $1 ? -1 : 1;
-	match->table_from = t->t_name;
+	match->table_from = strdup(t->t_name);
 }
 | negation FROM SRC tables {
 	struct table   *t = $4;
@@ -671,7 +671,7 @@ negation TAG tables {
 	}
 
 	match->flag_from = $1 ? -1 : 1;
-	match->table_from = t->t_name;
+	match->table_from = strdup(t->t_name);
 }
 
 | negation FOR LOCAL {
@@ -682,7 +682,7 @@ negation TAG tables {
 		YYERROR;
 	}
 	match->flag_for = $1 ? -1 : 1;
-	match->table_for = t->t_name;
+	match->table_for = strdup(t->t_name);
 }
 | negation FOR ANY {
 	struct table   *t = table_find("<anydestination>", NULL);
@@ -692,7 +692,7 @@ negation TAG tables {
 		YYERROR;
 	}
 	match->flag_for = $1 ? -1 : 1;
-	match->table_for = t->t_name;
+	match->table_for = strdup(t->t_name);
 }
 | negation FOR DOMAIN tables {
 	struct table   *t = $4;
@@ -709,7 +709,7 @@ negation TAG tables {
 	}
 
 	match->flag_for = $1 ? -1 : 1;
-	match->table_for = t->t_name;
+	match->table_for = strdup(t->t_name);
 }
 ;
 
