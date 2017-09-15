@@ -57,7 +57,7 @@
 #define RELAY_ONHOLD		0x01
 #define RELAY_HOLDQ		0x02
 
-static void mta_dispatch_envelope(struct envelope *, const char *);
+static void mta_handle_envelope(struct envelope *, const char *);
 static void mta_query_smarthost(struct envelope *);
 static void mta_on_smarthost(struct envelope *, const char *);
 static void mta_query_mx(struct mta_relay *);
@@ -209,7 +209,7 @@ mta_imsg(struct mproc *p, struct imsg *imsg)
 			m_get_envelope(&m, &evp);
 			m_end(&m);
 
-			mta_dispatch_envelope(&evp, NULL);
+			mta_handle_envelope(&evp, NULL);
 			return;
 
 		case IMSG_MTA_OPEN_MESSAGE:
@@ -654,7 +654,7 @@ mta_route_next_task(struct mta_relay *relay, struct mta_route *route)
 }
 
 static void
-mta_dispatch_envelope(struct envelope *evp, const char *smarthost)
+mta_handle_envelope(struct envelope *evp, const char *smarthost)
 {
 	struct mta_relay	*relay;
 	struct mta_task		*task;
@@ -1077,7 +1077,7 @@ mta_on_smarthost(struct envelope *evp, const char *smarthost)
 		return;
 	}
 
-	mta_dispatch_envelope(evp, smarthost);
+	mta_handle_envelope(evp, smarthost);
 	free(evp);
 }
 
