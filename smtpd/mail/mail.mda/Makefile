@@ -7,7 +7,7 @@ BINGRP=	wheel
 BINMODE?=0555
 
 BINDIR=	/usr/libexec
-MAN=	mail.file.8
+MAN=	mail.mda.8
 
 CFLAGS+=	-fstack-protector-all
 CFLAGS+=	-Wall -Wstrict-prototypes -Wmissing-prototypes
