@@ -1067,7 +1067,7 @@ struct dispatcher_remote {
 	char	*smarthost;
 	char	*auth;
 
-	uint8_t	backup;
+	char	*backup;
 };
 
 struct dispatcher_bounce {

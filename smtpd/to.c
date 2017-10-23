@@ -319,9 +319,7 @@ text_to_relayhost(struct relayhost *relay, const char *s)
 		{ "smtps+auth://",	F_SMTPS|F_AUTH			},
 		{ "tls+auth://",	F_STARTTLS|F_AUTH		},
 		{ "secure://",		F_SMTPS|F_STARTTLS		},
-		{ "secure+auth://",	F_SMTPS|F_STARTTLS|F_AUTH	},
-		{ "backup://",		F_BACKUP       			},
-		{ "tls+backup://",	F_BACKUP|F_STARTTLS    		}
+		{ "secure+auth://",	F_SMTPS|F_STARTTLS|F_AUTH	}
 	};
 	const char     *errstr = NULL;
 	char	       *p, *q;

@@ -671,6 +671,12 @@ mta_handle_envelope(struct envelope *evp, const char *smarthost)
 	if (dispatcher->u.remote.helo)
 		strlcpy(evp->agent.mta.relay.heloname, dispatcher->u.remote.helo,
 		    sizeof(evp->agent.mta.relay.heloname));
+	if (dispatcher->u.remote.backup) {
+		evp->agent.mta.relay.flags |= RELAY_BACKUP;
+		strlcpy(evp->agent.mta.relay.hostname,
+		    dispatcher->u.remote.backup,
+		    sizeof(evp->agent.mta.relay.hostname));
+	}
 
 	if (smarthost) {
 		if (text_to_relayhost(&evp->agent.mta.relay, smarthost) == 0) {

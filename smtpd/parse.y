@@ -424,19 +424,27 @@ HELO STRING {
 
 	dispatcher->u.remote.mail_from = $2;
 }
-| BACKUP {
+| BACKUP AS STRING {
 	if (dispatcher->u.remote.backup) {
 		yyerror("backup already specified for this dispatcher");
 		YYERROR;
 	}
+	if (dispatcher->u.remote.smarthost) {
+		yyerror("backup and smarthost are mutually exclusive");
+		YYERROR;
+	}
 
-	dispatcher->u.remote.backup = 1;
+	dispatcher->u.remote.backup = $3;
 }
 | SMARTHOST tables {
 	struct table   *t = $2;
 
 	if (dispatcher->u.remote.smarthost) {
 		yyerror("smarthost mapping already specified for this dispatcher");
+		YYERROR;
+	}
+	if (dispatcher->u.remote.backup) {
+		yyerror("backup and smarthost are mutually exclusive");
 		YYERROR;
 	}
 
