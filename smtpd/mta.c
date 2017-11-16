@@ -642,7 +642,7 @@ mta_handle_envelope(struct envelope *evp, const char *smarthost)
 	struct mta_task		*task;
 	struct mta_envelope	*e;
 	struct dispatcher	*dispatcher;
-	char			 buf[LINE_MAX];
+	char			 buf[LINE_MAX], *backupmx;
 
 	dispatcher = dict_xget(env->sc_dispatchers, evp->dispatcher);
 	if (dispatcher->u.remote.smarthost && smarthost == NULL) {
@@ -673,8 +673,10 @@ mta_handle_envelope(struct envelope *evp, const char *smarthost)
 		    sizeof(evp->agent.mta.relay.heloname));
 	if (dispatcher->u.remote.backup) {
 		evp->agent.mta.relay.flags |= RELAY_BACKUP;
-		strlcpy(evp->agent.mta.relay.hostname,
-		    dispatcher->u.remote.backup,
+		backupmx = dispatcher->u.remote.backupmx;
+		if (backupmx == NULL)
+			backupmx = evp->smtpname;
+		strlcpy(evp->agent.mta.relay.hostname, backupmx,
 		    sizeof(evp->agent.mta.relay.hostname));
 	}
 
@@ -737,6 +739,7 @@ mta_handle_envelope(struct envelope *evp, const char *smarthost)
 	e = xcalloc(1, sizeof *e, "mta_envelope");
 	e->id = evp->id;
 	e->creation = evp->creation;
+	e->smtpname = xstrdup(evp->smtpname, "mta_envelope:smtpname");
 	(void)snprintf(buf, sizeof buf, "%s@%s",
 	    evp->dest.user, evp->dest.domain);
 	e->dest = xstrdup(buf, "mta_envelope:dest");
@@ -806,6 +809,7 @@ mta_delivery_flush_event(int fd, short event, void *arg)
 
 		log_debug("debug: mta: flush for %016"PRIx64" (-> %s)", e->id, e->dest);
 
+		free(e->smtpname);
 		free(e->dest);
 		free(e->rcpt);
 		free(e->dsn_orcpt);

@@ -789,6 +789,7 @@ struct mta_envelope {
 	uint64_t			 id;
 	uint64_t			 session;
 	time_t				 creation;
+	char				*smtpname;
 	char				*dest;
 	char				*rcpt;
 	struct mta_task			*task;
@@ -1067,7 +1068,8 @@ struct dispatcher_remote {
 	char	*smarthost;
 	char	*auth;
 
-	char	*backup;
+	int	 backup;
+	char	*backupmx;
 };
 
 struct dispatcher_bounce {

@@ -174,7 +174,7 @@ typedef struct {
 %token	TABLE SMTPS CERTIFICATE DOMAIN BOUNCEWARN LIMIT INET4 INET6 NODSN SESSION
 %token  RELAY BACKUP VIA DELIVER TO LMTP MAILDIR MBOX RCPT_TO HOSTNAME HOSTNAMES
 %token	ACCEPT REJECT INCLUDE ERROR MDA FROM FOR SOURCE MTA PKI SCHEDULER
-%token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE
+%token	ARROW AUTH TLS LOCAL VIRTUAL TAG TAGGED ALIAS FILTER KEY CA DHE MX
 %token	AUTH_OPTIONAL TLS_REQUIRE USERBASE SENDER SENDERS MASK_SOURCE VERIFY FORWARD_ONLY RECIPIENT
 %token	CIPHERS RECEIVEDAUTH MASQUERADE SOCKET SUBADDRESSING_DELIM AUTHENTICATED
 %token	DISPATCH USER SMARTHOST HELO HELOSOURCE MAIL_FROM EXPIRY MATCH STARTTLS SRC EXPAND_ONLY
@@ -424,7 +424,7 @@ HELO STRING {
 
 	dispatcher->u.remote.mail_from = $2;
 }
-| BACKUP AS STRING {
+| BACKUP MX STRING {
 	if (dispatcher->u.remote.backup) {
 		yyerror("backup already specified for this dispatcher");
 		YYERROR;
@@ -434,7 +434,20 @@ HELO STRING {
 		YYERROR;
 	}
 
-	dispatcher->u.remote.backup = $3;
+	dispatcher->u.remote.backup = 1;
+	dispatcher->u.remote.backupmx = $3;
+}
+| BACKUP {
+	if (dispatcher->u.remote.backup) {
+		yyerror("backup already specified for this dispatcher");
+		YYERROR;
+	}
+	if (dispatcher->u.remote.smarthost) {
+		yyerror("backup and smarthost are mutually exclusive");
+		YYERROR;
+	}
+
+	dispatcher->u.remote.backup = 1;
 }
 | SMARTHOST tables {
 	struct table   *t = $2;
@@ -1506,6 +1519,7 @@ lookup(char *s)
 		{ "mbox",		MBOX },
 		{ "mda",		MDA },
 		{ "mta",		MTA },
+		{ "mx",			MX },
 		{ "no-dsn",		NODSN },
 		{ "on",			ON },
 		{ "pki",		PKI },
