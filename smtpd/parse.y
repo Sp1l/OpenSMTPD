@@ -333,7 +333,7 @@ dispatcher_local:
 MBOX {
 	dispatcher->u.local.requires_root = 1;
 	dispatcher->u.local.user = xstrdup("root", "dispatcher_mda");
-	asprintf(&dispatcher->u.local.command, "/usr/libexec/mail.local %%{user.username}");
+	asprintf(&dispatcher->u.local.command, "/usr/libexec/mail.local %%{dest.user}");
 } dispatcher_local_options
 | MAILDIR {
 	asprintf(&dispatcher->u.local.command,
