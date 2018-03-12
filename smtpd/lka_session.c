@@ -518,12 +518,15 @@ lka_submit(struct lka_session *lks, struct match *match, struct expandnode *xn)
 			fatalx("lka_deliver: expect address");
 		ep->type = D_MTA;
 		ep->dest = xn->u.mailaddr;
+		ep->done = xn->u.mailaddr;
 		break;
 
 	case DISPATCHER_BOUNCE:
 	case DISPATCHER_LOCAL:
 		ep->type = D_MDA;
 		ep->dest = lka_find_ancestor(xn, EXPAND_ADDRESS)->u.mailaddr;
+		ep->done = ep->dest;
+		(void)strlcpy(ep->done.user, xn->u.user, sizeof ep->done.user);
 		break;
 	}
 

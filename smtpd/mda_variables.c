@@ -118,15 +118,21 @@ mda_expand_token(char *dest, size_t len, const char *token,
 			return 0;
 		string = tmp;
 	}
+	else if (!strcasecmp("rcpt", rtoken)) {
+		if (snprintf(tmp, sizeof tmp, "%s@%s",
+			dlv->rcpt.user, dlv->rcpt.domain) >= (int)sizeof tmp)
+			return 0;
+		string = tmp;
+	}
 	else if (!strcasecmp("dest", rtoken)) {
 		if (snprintf(tmp, sizeof tmp, "%s@%s",
 			dlv->dest.user, dlv->dest.domain) >= (int)sizeof tmp)
 			return 0;
 		string = tmp;
 	}
-	else if (!strcasecmp("rcpt", rtoken)) {
+	else if (!strcasecmp("done", rtoken)) {
 		if (snprintf(tmp, sizeof tmp, "%s@%s",
-			dlv->rcpt.user, dlv->rcpt.domain) >= (int)sizeof tmp)
+			dlv->done.user, dlv->done.domain) >= (int)sizeof tmp)
 			return 0;
 		string = tmp;
 	}
@@ -140,14 +146,18 @@ mda_expand_token(char *dest, size_t len, const char *token,
 		string = ui->directory;
 		replace = 0;
 	}
-	else if (!strcasecmp("dest.user", rtoken))
-		string = dlv->dest.user;
-	else if (!strcasecmp("dest.domain", rtoken))
-		string = dlv->dest.domain;
 	else if (!strcasecmp("rcpt.user", rtoken))
 		string = dlv->rcpt.user;
 	else if (!strcasecmp("rcpt.domain", rtoken))
 		string = dlv->rcpt.domain;
+	else if (!strcasecmp("dest.user", rtoken))
+		string = dlv->dest.user;
+	else if (!strcasecmp("dest.domain", rtoken))
+		string = dlv->dest.domain;
+	else if (!strcasecmp("done.user", rtoken))
+		string = dlv->done.user;
+	else if (!strcasecmp("done.domain", rtoken))
+		string = dlv->done.domain;
 	else
 		return 0;
 

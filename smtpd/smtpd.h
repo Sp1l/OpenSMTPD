@@ -460,6 +460,7 @@ struct envelope {
 	struct mailaddr			sender;
 	struct mailaddr			rcpt;
 	struct mailaddr			dest;
+	struct mailaddr			done;
 
 	enum delivery_type		type;
 	union {
@@ -611,6 +612,7 @@ struct deliver {
 	struct mailaddr		sender;
 	struct mailaddr		rcpt;
 	struct mailaddr		dest;
+	struct mailaddr		done;
 
 	char			user[SMTPD_VUSERNAME_SIZE];	
 	struct userinfo		userinfo;

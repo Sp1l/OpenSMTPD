@@ -50,8 +50,9 @@ struct mda_envelope {
 	uint64_t			 id;
 	time_t				 creation;
 	char				*sender;
-	char				*dest;
 	char				*rcpt;
+	char				*dest;
+	char				*done;
 	char				*user;
 	char				*dispatcher;
 };
@@ -248,30 +249,21 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 		time(&now);
 
 		n = 0;
+		/* start queueing delivery headers */
 		if (e->sender[0])
-			n = io_printf(s->io, "From %s %s",
-			    e->sender, ctime(&now));
+			/* 
+			 * XXX: remove existing Return-Path,
+			 * if any
+			 */
+			n = io_printf(s->io,
+			    "Return-Path: %s\n"
+			    "Delivered-To: %s\n",
+			    e->sender,
+			    e->rcpt ? e->rcpt : e->dest);
 		else
 			n = io_printf(s->io,
-			    "From MAILER-DAEMON@%s %s",
-			    env->sc_hostname, ctime(&now));
-		if (n != -1) {
-			/* start queueing delivery headers */
-			if (e->sender[0])
-				/* 
-				 * XXX: remove existing Return-Path,
-				 * if any
-				 */
-				n = io_printf(s->io,
-				    "Return-Path: %s\n"
-				    "Delivered-To: %s\n",
-				    e->sender,
-				    e->rcpt ? e->rcpt : e->dest);
-			else
-				n = io_printf(s->io,
-				    "Delivered-To: %s\n",
-				    e->rcpt ? e->rcpt : e->dest);
-		}
+			    "Delivered-To: %s\n",
+			    e->rcpt ? e->rcpt : e->dest);
 		if (n == -1) {
 			log_warn("warn: mda: "
 			    "fail to write delivery info");
@@ -288,6 +280,7 @@ mda_imsg(struct mproc *p, struct imsg *imsg)
 		text_to_mailaddr(&deliver.sender, s->evp->sender);
 		text_to_mailaddr(&deliver.rcpt, s->evp->rcpt);
 		text_to_mailaddr(&deliver.dest, s->evp->dest);
+		text_to_mailaddr(&deliver.done, s->evp->done);
 		(void)strlcpy(deliver.dispatcher, s->evp->dispatcher, sizeof deliver.dispatcher);
 		deliver.userinfo = s->user->userinfo;
 
@@ -720,7 +713,7 @@ mda_user(const struct envelope *evp)
 	i = NULL;
 	dsp = dict_xget(env->sc_dispatchers, evp->dispatcher);
 	while (tree_iter(&users, &i, NULL, (void**)(&u))) {
-		if (!strcmp(evp->dest.user, u->name) &&
+		if (!strcmp(evp->done.user, u->name) &&
 		    !strcmp(dsp->u.local.table_userbase, u->usertable))
 			return (u);
 	}
@@ -728,7 +721,7 @@ mda_user(const struct envelope *evp)
 	u = xcalloc(1, sizeof *u, "mda_user");
 	u->id = generate_uid();
 	TAILQ_INIT(&u->envelopes);
-	(void)strlcpy(u->name, evp->dest.user, sizeof(u->name));
+	(void)strlcpy(u->name, evp->done.user, sizeof(u->name));
 	(void)strlcpy(u->usertable, dsp->u.local.table_userbase,
 	    sizeof(u->usertable));
 
@@ -740,7 +733,7 @@ mda_user(const struct envelope *evp)
 	if (dsp->u.local.user)
 		m_add_string(p_lka, dsp->u.local.user);
 	else
-		m_add_string(p_lka, evp->dest.user);
+		m_add_string(p_lka, evp->done.user);
 	m_close(p_lka);
 	u->flags |= USER_WAITINFO;
 
@@ -803,6 +796,9 @@ mda_envelope(const struct envelope *evp)
 	(void)snprintf(buf, sizeof buf, "%s@%s", evp->rcpt.user,
 	    evp->rcpt.domain);
 	e->rcpt = xstrdup(buf, "mda_envelope:rcpt");
+	(void)snprintf(buf, sizeof buf, "%s@%s", evp->done.user,
+	    evp->done.domain);
+	e->done = xstrdup(buf, "mda_envelope:done");
 	e->user = xstrdup(evp->dest.user, "mda_envelope:user");
 	e->dispatcher = xstrdup(evp->dispatcher, "mda_envelope:user");
 	stat_increment("mda.envelope", 1);

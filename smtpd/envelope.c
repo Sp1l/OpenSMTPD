@@ -183,6 +183,7 @@ envelope_dump_buffer(const struct envelope *ep, char *dest, size_t len)
 	envelope_ascii_dump(ep, &dest, &len, "sender");
 	envelope_ascii_dump(ep, &dest, &len, "rcpt");
 	envelope_ascii_dump(ep, &dest, &len, "dest");
+	envelope_ascii_dump(ep, &dest, &len, "done");
 	envelope_ascii_dump(ep, &dest, &len, "ctime");
 	envelope_ascii_dump(ep, &dest, &len, "last-try");
 	envelope_ascii_dump(ep, &dest, &len, "last-bounce");
@@ -478,6 +479,9 @@ ascii_load_field(const char *field, struct envelope *ep, char *buf)
 
 	if (strcasecmp("rcpt", field) == 0)
 		return ascii_load_mailaddr(&ep->rcpt, buf);
+
+	if (strcasecmp("done", field) == 0)
+		return ascii_load_mailaddr(&ep->done, buf);
 
 	if (strcasecmp("sender", field) == 0)
 		return ascii_load_mailaddr(&ep->sender, buf);
@@ -776,6 +780,9 @@ ascii_dump_field(const char *field, const struct envelope *ep,
 
 	if (strcasecmp(field, "rcpt") == 0)
 		return ascii_dump_mailaddr(&ep->rcpt, buf, len);
+
+	if (strcasecmp(field, "done") == 0)
+		return ascii_dump_mailaddr(&ep->done, buf, len);
 
 	if (strcasecmp(field, "sender") == 0)
 		return ascii_dump_mailaddr(&ep->sender, buf, len);
