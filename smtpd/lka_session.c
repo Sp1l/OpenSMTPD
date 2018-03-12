@@ -526,7 +526,13 @@ lka_submit(struct lka_session *lks, struct match *match, struct expandnode *xn)
 		ep->type = D_MDA;
 		ep->dest = lka_find_ancestor(xn, EXPAND_ADDRESS)->u.mailaddr;
 		ep->done = ep->dest;
-		(void)strlcpy(ep->done.user, xn->u.user, sizeof ep->done.user);
+		if (xn->type == EXPAND_USERNAME)
+			(void)strlcpy(ep->done.user, xn->u.user, sizeof ep->done.user);
+		else {
+			(void)strlcpy(ep->done.user,
+			    lka_find_ancestor(xn, EXPAND_USERNAME)->u.user,
+			    sizeof ep->done.user);
+		}
 		break;
 	}
 
